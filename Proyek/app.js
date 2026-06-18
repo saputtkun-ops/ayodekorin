@@ -131,6 +131,7 @@ let activeGanttScale = 'days';
 let dragSourceTaskId = null;
 let currentSelectedTaskId = null;
 let tempUploadedImageBase64 = '';
+let tempUploadedFile = null;
 
 // Date helpers
 function addDays(dateStr, days) {
@@ -1063,6 +1064,7 @@ function openTaskModal(editId = null) {
         // Reset and populate image values
         document.getElementById('task-image-file').value = '';
         tempUploadedImageBase64 = '';
+        tempUploadedFile = null;
         const imageUrlInput = document.getElementById('task-image-url');
         if (task.image) {
             if (task.image.startsWith('data:')) {
@@ -1096,6 +1098,7 @@ function openTaskModal(editId = null) {
         document.getElementById('task-image-file').value = '';
         document.getElementById('task-image-url').value = '';
         tempUploadedImageBase64 = '';
+        tempUploadedFile = null;
         
         predContainer.innerHTML = tasks.map(t => `
             <label class="pred-check-label">
@@ -1212,12 +1215,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('task-image-file')?.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
+            tempUploadedFile = file;
             const reader = new FileReader();
             reader.onload = (event) => {
                 tempUploadedImageBase64 = event.target.result;
             };
             reader.readAsDataURL(file);
         } else {
+            tempUploadedFile = null;
             tempUploadedImageBase64 = '';
         }
     });
@@ -1271,8 +1276,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    document.getElementById('form-task')?.addEventListener('submit', (e) => {
+    document.getElementById('form-task')?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        
+        const saveBtn = document.getElementById('btn-save-task');
+        const originalBtnText = saveBtn.innerHTML;
         
         const editId = document.getElementById('task-edit-id').value;
         const title = document.getElementById('task-title').value.trim();
@@ -1284,8 +1292,20 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const imageUrl = document.getElementById('task-image-url').value.trim();
         let image = '';
-        if (tempUploadedImageBase64) {
-            image = tempUploadedImageBase64;
+        
+        if (tempUploadedFile) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span>Mengunggah Foto...</span>';
+            const uploadedUrl = await uploadImage(tempUploadedFile);
+            if (uploadedUrl) {
+                image = uploadedUrl;
+                showToast('Foto berhasil diunggah!', 'success');
+            } else {
+                image = tempUploadedImageBase64;
+                showToast('Gagal mengunggah foto ke internet. Foto disimpan secara lokal.', 'info');
+            }
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalBtnText;
         } else if (imageUrl) {
             image = imageUrl;
         } else if (editId) {
@@ -1486,3 +1506,23 @@ _Dikirim via Saputt Project Architect Console_`;
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
     window.open(whatsappUrl, '_blank');
 };
+
+// Upload image to anonymous file hosting (tmpfiles.org)
+async function uploadImage(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+        const res = await fetch('https://tmpfiles.org/api/v1/upload', {
+            method: 'POST',
+            body: formData
+        });
+        const json = await res.json();
+        if (json && json.status === 'success' && json.data && json.data.url) {
+            // Return direct image link
+            return json.data.url.replace('https://tmpfiles.org/', 'https://tmpfiles.org/dl/');
+        }
+    } catch (e) {
+        console.error('Failed to upload image', e);
+    }
+    return null;
+}
