@@ -674,9 +674,8 @@ body {
     width: 10px;
 }
 
-.status-todo { background-color: var(--accent-blue); }
-.status-progress { background-color: var(--accent-amber); }
-.status-review { background-color: var(--accent-purple); }
+.status-tunda { background-color: var(--accent-ruby); }
+.status-progres { background-color: var(--accent-amber); }
 .status-done { background-color: var(--accent-emerald); }
 .status-blocked { background-color: var(--accent-ruby); }
 .status-critical { border: 2px solid var(--accent-purple); box-shadow: 0 0 8px rgba(139, 92, 246, 0.4); }

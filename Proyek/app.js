@@ -41,7 +41,7 @@ const defaultTasks = [
         title: 'Pemasangan Rangka Plafon Hollow',
         description: 'Pemasangan besi hollow galvanis 4x4 untuk rangka plafon drop ceiling sesuai detail arsitektur.',
         subconId: 'sub-1',
-        status: 'IN_PROGRESS',
+        status: 'PROGRES',
         priority: 'MEDIUM',
         startDate: '2026-06-26',
         duration: 3,
@@ -53,7 +53,7 @@ const defaultTasks = [
         title: 'Pemasangan Partisi Gypsum Dinding',
         description: 'Menutup partisi dinding dua sisi dengan rangka stud metal dan papan gypsum Jayaboard tebal 9mm.',
         subconId: 'sub-1',
-        status: 'TODO',
+        status: 'TUNDA',
         priority: 'MEDIUM',
         startDate: '2026-06-26',
         duration: 4,
@@ -65,7 +65,7 @@ const defaultTasks = [
         title: 'Instalasi Saklar & Lampu Plafon',
         description: 'Pemasangan armature lampu downlight LED, saklar Schneider, serta pengujian koneksi sirkuit panel.',
         subconId: 'sub-2',
-        status: 'TODO',
+        status: 'TUNDA',
         priority: 'LOW',
         startDate: '2026-06-29',
         duration: 2,
@@ -77,7 +77,7 @@ const defaultTasks = [
         title: 'Pemasangan Lemari Custom & Kitchen Set',
         description: 'Instalasi kabinet dapur kayu solid HPL premium, fitting engsel slow-motion Blum, dan pemasangan top table marmer.',
         subconId: 'sub-3',
-        status: 'TODO',
+        status: 'TUNDA',
         priority: 'HIGH',
         startDate: '2026-07-01',
         duration: 5,
@@ -89,7 +89,7 @@ const defaultTasks = [
         title: 'Finishing Cat Dinding & Plafon',
         description: 'Pekerjaan plamir dinding, sanding, dan cat akhir interior dengan cat Dulux Ambiance 3 lapis untuk warna matte.',
         subconId: 'sub-4',
-        status: 'TODO',
+        status: 'TUNDA',
         priority: 'MEDIUM',
         startDate: '2026-07-06',
         duration: 4,
@@ -101,7 +101,7 @@ const defaultTasks = [
         title: 'Pemasangan Cermin Hias & Kaca Partisi',
         description: 'Pemasangan cermin bronze dekoratif bevel di ruang tamu dan kaca tempered 10mm untuk pembatas shower kamar mandi.',
         subconId: 'sub-5',
-        status: 'TODO',
+        status: 'TUNDA',
         priority: 'LOW',
         startDate: '2026-07-10',
         duration: 2,
@@ -113,7 +113,7 @@ const defaultTasks = [
         title: 'Serah Terima Area & QC Akhir',
         description: 'Pemeriksaan komprehensif seluruh titik kerja bersama project manager, perbaikan minor, dan pembersihan final.',
         subconId: 'sub-1',
-        status: 'TODO',
+        status: 'TUNDA',
         priority: 'HIGH',
         startDate: '2026-07-12',
         duration: 1,
@@ -179,6 +179,16 @@ if (!localStorage.getItem(`saputt_logs_${activeProjectId}`)) {
 
 let subcontractors = JSON.parse(localStorage.getItem('c_subcons') || 'null') || defaultSubcontractors;
 let tasks = JSON.parse(localStorage.getItem(`saputt_tasks_${activeProjectId}`)) || defaultTasks;
+
+// Migrate task status codes to TUNDA, PROGRES, DONE (backward compatibility)
+tasks.forEach(t => {
+    if (t.status === 'TODO' || t.status === 'REVIEW' || !t.status) {
+        t.status = 'TUNDA';
+    } else if (t.status === 'IN_PROGRESS') {
+        t.status = 'PROGRES';
+    }
+});
+
 let auditLogs = JSON.parse(localStorage.getItem(`saputt_logs_${activeProjectId}`)) || [];
 let activeTab = 'dashboard';
 let activeGanttScale = 'days';
@@ -707,8 +717,8 @@ function renderGantt() {
         
         let progressWidthPercent = 0;
         if (t.status === 'DONE') progressWidthPercent = 100;
-        else if (t.status === 'REVIEW') progressWidthPercent = 85;
-        else if (t.status === 'IN_PROGRESS') progressWidthPercent = 40;
+        else if (t.status === 'PROGRES') progressWidthPercent = 40;
+        else if (t.status === 'TUNDA') progressWidthPercent = 0;
         
         const isBlocked = isTaskBlocked(t);
         const barClass = `${t.critical ? 'critical' : ''}`;
@@ -817,7 +827,7 @@ function hexToRgb(hex) {
 }
 
 function renderKanban() {
-    const cols = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE'];
+    const cols = ['TUNDA', 'PROGRES', 'DONE'];
     
     cols.forEach(status => {
         const colContainer = document.getElementById(`kanban-${status.toLowerCase()}`);
@@ -909,7 +919,7 @@ function renderSubcontractors() {
         const subTasks = tasks.filter(t => t.subconId === sub.id);
         const total = subTasks.length;
         const done = subTasks.filter(t => t.status === 'DONE').length;
-        const inProgress = subTasks.filter(t => t.status === 'IN_PROGRESS').length;
+        const inProgress = subTasks.filter(t => t.status === 'PROGRES').length;
         
         subconHtml += `
             <div class="subcon-card" style="--subcon-color: ${sub.color}">
@@ -991,9 +1001,10 @@ function inspectTask(taskId) {
         task.predecessors.forEach(pId => {
             const pred = tasks.find(x => x.id === pId);
             if (pred) {
-                let statusColor = 'var(--accent-blue)';
+                let statusColor = 'var(--accent-slate)';
                 if (pred.status === 'DONE') statusColor = 'var(--accent-emerald)';
-                else if (pred.status === 'IN_PROGRESS') statusColor = 'var(--accent-amber)';
+                else if (pred.status === 'PROGRES') statusColor = 'var(--accent-amber)';
+                else if (pred.status === 'TUNDA') statusColor = 'var(--accent-ruby)';
                 
                 predListHtml += `
                     <div class="flyout-pred-item">
@@ -1008,10 +1019,10 @@ function inspectTask(taskId) {
         predListHtml += '</div>';
     }
     
-    let statusColor = 'var(--accent-blue)';
+    let statusColor = 'var(--accent-slate)';
     if (task.status === 'DONE') statusColor = 'var(--accent-emerald)';
-    else if (task.status === 'IN_PROGRESS') statusColor = 'var(--accent-amber)';
-    else if (task.status === 'REVIEW') statusColor = 'var(--accent-purple)';
+    else if (task.status === 'PROGRES') statusColor = 'var(--accent-amber)';
+    else if (task.status === 'TUNDA') statusColor = 'var(--accent-ruby)';
     
     content.innerHTML = `
         <div class="flyout-section">
@@ -1113,6 +1124,7 @@ function openTaskModal(editId = null) {
         document.getElementById('task-title').value = task.title;
         document.getElementById('task-subcon').value = task.subconId;
         document.getElementById('task-priority').value = task.priority;
+        document.getElementById('task-status').value = task.status;
         document.getElementById('task-start-date').value = task.startDate;
         document.getElementById('task-duration').value = task.duration.toString();
         document.getElementById('task-description').value = task.description;
@@ -1344,6 +1356,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const title = document.getElementById('task-title').value.trim();
         const subconId = document.getElementById('task-subcon').value;
         const priority = document.getElementById('task-priority').value;
+        const status = document.getElementById('task-status').value;
         const startDate = document.getElementById('task-start-date').value;
         const duration = parseInt(document.getElementById('task-duration').value, 10);
         const description = document.getElementById('task-description').value.trim();
@@ -1401,6 +1414,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     title,
                     subconId,
                     priority,
+                    status,
                     startDate,
                     duration,
                     endDate,
@@ -1420,7 +1434,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 title,
                 description,
                 subconId,
-                status: 'TODO',
+                status,
                 priority,
                 startDate,
                 duration,
@@ -1487,7 +1501,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (task.status === targetStatus) return;
             
-            if (targetStatus !== 'TODO') {
+            if (targetStatus !== 'TUNDA') {
                 const unfinishedPreds = [];
                 task.predecessors.forEach(pId => {
                     const pred = tasks.find(x => x.id === pId);
@@ -1726,7 +1740,7 @@ window.addNewProject = function() {
             endDate: addDays(new Date().toISOString().split('T')[0], 5),
             duration: 5,
             progress: 0,
-            status: 'TODO',
+            status: 'TUNDA',
             priority: 'Medium',
             subconId: subcontractors[0]?.id || '',
             critical: true,

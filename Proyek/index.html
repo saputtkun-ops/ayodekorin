@@ -234,12 +234,11 @@
             <div class="tab-content hidden" id="tab-gantt">
                 <div class="timeline-controls">
                     <div class="timeline-legend">
-                        <span class="legend-item"><span class="legend-dot status-todo"></span> To-Do</span>
-                        <span class="legend-item"><span class="legend-dot status-progress"></span> In-Progress</span>
-                        <span class="legend-item"><span class="legend-dot status-review"></span> Review</span>
+                        <span class="legend-item"><span class="legend-dot status-tunda"></span> Tunda</span>
+                        <span class="legend-item"><span class="legend-dot status-progres"></span> Progres</span>
                         <span class="legend-item"><span class="legend-dot status-done"></span> Done</span>
-                        <span class="legend-item"><span class="legend-dot status-blocked"></span> Blocked</span>
-                        <span class="legend-item"><span class="legend-dot status-critical"></span> Critical Path</span>
+                        <span class="legend-item"><span class="legend-dot status-blocked"></span> Terkunci</span>
+                        <span class="legend-item"><span class="legend-dot status-critical"></span> Jalur Kritis CPM</span>
                     </div>
                     <div class="view-toggles">
                         <button class="btn-toggle active" id="btn-scale-days">Hari</button>
@@ -276,34 +275,26 @@
             <!-- Kanban Board Tab -->
             <div class="tab-content hidden" id="tab-kanban">
                 <div class="kanban-container">
-                    <!-- Column TO DO -->
-                    <div class="kanban-column" data-status="TODO">
+                    <!-- Column TUNDA -->
+                    <div class="kanban-column" data-status="TUNDA">
                         <div class="column-header">
-                            <h3>TO DO</h3>
-                            <span class="column-count" id="count-todo">0</span>
+                            <h3>Tunda (Belum Mulai)</h3>
+                            <span class="column-count" id="count-tunda">0</span>
                         </div>
-                        <div class="kanban-cards" id="kanban-todo"></div>
+                        <div class="kanban-cards" id="kanban-tunda"></div>
                     </div>
-                    <!-- Column IN PROGRESS -->
-                    <div class="kanban-column" data-status="IN_PROGRESS">
+                    <!-- Column PROGRES -->
+                    <div class="kanban-column" data-status="PROGRES">
                         <div class="column-header">
-                            <h3>IN PROGRESS</h3>
-                            <span class="column-count" id="count-progress">0</span>
+                            <h3>Progres (Berjalan)</h3>
+                            <span class="column-count" id="count-progres">0</span>
                         </div>
-                        <div class="kanban-cards" id="kanban-progress"></div>
-                    </div>
-                    <!-- Column REVIEW -->
-                    <div class="kanban-column" data-status="REVIEW">
-                        <div class="column-header">
-                            <h3>REVIEW</h3>
-                            <span class="column-count" id="count-review">0</span>
-                        </div>
-                        <div class="kanban-cards" id="kanban-review"></div>
+                        <div class="kanban-cards" id="kanban-progres"></div>
                     </div>
                     <!-- Column DONE -->
                     <div class="kanban-column" data-status="DONE">
                         <div class="column-header">
-                            <h3>DONE</h3>
+                            <h3>Done (Selesai)</h3>
                             <span class="column-count" id="count-done">0</span>
                         </div>
                         <div class="kanban-cards" id="kanban-done"></div>
@@ -370,6 +361,17 @@
                         <label for="task-subcon">Subkontraktor Penanggung Jawab <span class="required">*</span></label>
                         <select id="task-subcon" required>
                             <!-- Populated by JS -->
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="task-status">Status Pekerjaan</label>
+                        <select id="task-status">
+                            <option value="TUNDA">Tunda (Belum Mulai / Ditunda)</option>
+                            <option value="PROGRES">Progres (Sedang Berjalan)</option>
+                            <option value="DONE">Done (Selesai)</option>
                         </select>
                     </div>
                     <div class="form-group">
