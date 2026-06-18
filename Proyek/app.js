@@ -1172,15 +1172,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const subEl = document.getElementById('page-subtitle');
             
             if (targetTab === 'dashboard') {
-                titleEl.innerText = 'Architect Dashboard';
+                titleEl.innerText = 'Dasbor Arsitek';
                 subEl.innerText = 'Ikhtisar metrik proyek, distribusi beban kerja subkontraktor, dan analisis jalur kritis.';
                 renderDashboard();
             } else if (targetTab === 'gantt') {
-                titleEl.innerText = 'Timeline Gantt';
+                titleEl.innerText = 'Lini Masa Gantt';
                 subEl.innerText = 'Visualisasi hubungan dependensi ketat antar-subkontraktor dan jalur kritis proyek.';
                 renderGantt();
             } else if (targetTab === 'kanban') {
-                titleEl.innerText = 'Kanban Board';
+                titleEl.innerText = 'Papan Kanban';
                 subEl.innerText = 'Pelacakan status pekerjaan harian. Tarik kartu untuk memindahkan status tugas.';
                 renderKanban();
             } else if (targetTab === 'subcons') {
