@@ -123,12 +123,18 @@ const defaultTasks = [
 ];
 
 // State variables
-let projects = JSON.parse(localStorage.getItem('saputt_projects'));
+let projects = null;
+try {
+    projects = JSON.parse(localStorage.getItem('saputt_projects'));
+} catch (e) {
+    console.error("Failed to parse projects from localStorage", e);
+}
+
 let activeProjectId = localStorage.getItem('saputt_active_project_id');
 
-// Migrate legacy single-project data if it exists
-if (!projects) {
-    const legacyTasks = JSON.parse(localStorage.getItem('c_tasks'));
+// Migrate legacy single-project data or handle empty projects array
+if (!projects || !Array.isArray(projects) || projects.length === 0) {
+    const legacyTasks = JSON.parse(localStorage.getItem('c_tasks') || 'null');
     const legacyLogs = JSON.parse(localStorage.getItem('c_logs') || '[]');
     
     projects = [
@@ -144,9 +150,31 @@ if (!projects) {
     localStorage.setItem('saputt_logs_p-1', JSON.stringify(legacyLogs));
 }
 
-if (!activeProjectId) {
+// Clean and validate projects array to make sure every entry has id and name
+projects = projects.filter(p => p && p.id && p.name);
+if (projects.length === 0) {
+    projects = [{ id: 'p-1', name: 'Penthouse Renovasi' }];
+    localStorage.setItem('saputt_projects', JSON.stringify(projects));
+}
+
+// Fallback if projects is populated but activeProjectId is invalid
+if (!activeProjectId || !projects.find(p => p.id === activeProjectId)) {
     activeProjectId = projects[0].id;
     localStorage.setItem('saputt_active_project_id', activeProjectId);
+}
+
+// Force migrate if legacy c_tasks exists but new storage key is missing
+if (!localStorage.getItem(`saputt_tasks_${activeProjectId}`)) {
+    const legacyTasks = localStorage.getItem('c_tasks');
+    if (legacyTasks) {
+        localStorage.setItem(`saputt_tasks_${activeProjectId}`, legacyTasks);
+    }
+}
+if (!localStorage.getItem(`saputt_logs_${activeProjectId}`)) {
+    const legacyLogs = localStorage.getItem('c_logs');
+    if (legacyLogs) {
+        localStorage.setItem(`saputt_logs_${activeProjectId}`, legacyLogs);
+    }
 }
 
 let subcontractors = JSON.parse(localStorage.getItem('c_subcons') || 'null') || defaultSubcontractors;
