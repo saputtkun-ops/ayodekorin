@@ -1155,12 +1155,13 @@ document.addEventListener('DOMContentLoaded', () => {
     renderBanners();
     renderDashboard();
     
-    document.querySelectorAll('.nav-item').forEach(btn => {
+    const allNavItems = document.querySelectorAll('.nav-item, .mobile-nav-item');
+    allNavItems.forEach(btn => {
         btn.addEventListener('click', () => {
             const targetTab = btn.getAttribute('data-tab');
             
-            document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+            allNavItems.forEach(b => b.classList.remove('active'));
+            document.querySelectorAll(`[data-tab="${targetTab}"]`).forEach(b => b.classList.add('active'));
             
             document.querySelectorAll('.tab-content').forEach(tc => tc.classList.add('hidden'));
             document.getElementById(`tab-${targetTab}`).classList.remove('hidden');

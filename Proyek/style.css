@@ -1609,15 +1609,142 @@ body {
     }
 }
 
+/* Mobile Bottom Navigation Bar Styles */
+.mobile-bottom-nav {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    background-color: rgba(11, 17, 32, 0.95);
+    border-top: 1px solid var(--border-color);
+    backdrop-filter: blur(var(--glass-blur));
+    z-index: 99;
+    padding: 6px 10px;
+    justify-content: space-around;
+    align-items: center;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+}
+
+.mobile-nav-item {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 500;
+    transition: var(--transition-fast);
+    padding: 6px;
+    flex: 1;
+}
+
+.mobile-nav-item svg {
+    color: var(--text-muted);
+    transition: var(--transition-fast);
+}
+
+.mobile-nav-item:hover {
+    color: var(--text-main);
+}
+
+.mobile-nav-item.active {
+    color: var(--accent-blue);
+    font-weight: 700;
+}
+
+.mobile-nav-item.active svg {
+    color: var(--accent-blue);
+    transform: translateY(-1px);
+}
+
 /* Responsive adjust */
 @media(max-width: 992px) {
     .app-layout {
         grid-template-columns: 1fr;
     }
     .sidebar {
-        display: none; /* In production, we'd add a toggle burger */
+        display: none;
     }
     .dashboard-grid-2col {
         grid-template-columns: 1fr;
+    }
+    .mobile-bottom-nav {
+        display: flex;
+    }
+    .main-content {
+        padding: 20px 16px 88px 16px; /* Extra bottom padding so items aren't cut off by bottom nav */
+        height: auto;
+        overflow-y: visible;
+    }
+    .gantt-wrapper {
+        flex-direction: column;
+    }
+    .gantt-left-pane {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        background-color: rgba(11, 17, 32, 0.7);
+    }
+    .gantt-task-rows-labels {
+        flex-direction: row;
+        overflow-x: auto;
+        padding: 4px 8px;
+        gap: 8px;
+    }
+    .gantt-label-row {
+        flex-shrink: 0;
+        width: 150px;
+        height: 44px;
+        border-bottom: none;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-sm);
+        background-color: rgba(255, 255, 255, 0.02);
+        padding: 0 10px;
+    }
+    .gantt-bar-row {
+        height: 44px;
+    }
+    .gantt-task-bar {
+        height: 24px;
+        top: 10px;
+    }
+    .gantt-svg-overlay {
+        height: 100%;
+    }
+    .gantt-task-bar {
+        border-radius: 4px;
+    }
+    .kanban-container {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    .kanban-column {
+        max-height: 450px;
+    }
+    .flyout-panel {
+        width: 100vw; /* Take full screen width on mobile */
+    }
+    .modal-container {
+        width: 95%;
+        max-height: 85vh;
+    }
+    #page-title {
+        font-size: 22px;
+    }
+    .content-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    .header-actions {
+        width: 100%;
+    }
+    .header-actions button {
+        flex: 1;
     }
 }
