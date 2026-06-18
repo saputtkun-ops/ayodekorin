@@ -395,6 +395,19 @@
                     <textarea id="task-description" rows="3" placeholder="Tuliskan detail spesifikasi, material, dan instruksi pekerjaan..."></textarea>
                 </div>
 
+                <div class="form-group">
+                    <label>Foto Pekerjaan (Opsional)</label>
+                    <div class="form-row">
+                        <div class="form-group" style="margin-bottom: 0; padding-bottom: 0;">
+                            <input type="file" id="task-image-file" accept="image/*" style="font-size: 11px; padding: 8px;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0; padding-bottom: 0;">
+                            <input type="text" id="task-image-url" placeholder="Atau paste URL Foto (http...)">
+                        </div>
+                    </div>
+                    <p class="form-helper">Unggah berkas lokal (disimpan di browser) ATAU gunakan URL link gambar agar dapat ditautkan ke WhatsApp.</p>
+                </div>
+
                 <div class="modal-actions">
                     <button type="button" class="btn-cancel" id="btn-cancel-task">Batal</button>
                     <button type="submit" class="btn-submit" id="btn-save-task">Simpan Tugas</button>

@@ -130,6 +130,7 @@ let activeTab = 'dashboard';
 let activeGanttScale = 'days';
 let dragSourceTaskId = null;
 let currentSelectedTaskId = null;
+let tempUploadedImageBase64 = '';
 
 // Date helpers
 function addDays(dateStr, days) {
@@ -1013,6 +1014,14 @@ function inspectTask(taskId) {
             <span class="flyout-section-lbl">Deskripsi / Spesifikasi Material</span>
             <div class="flyout-desc-box">${task.description || 'Tidak ada deskripsi pekerjaan.'}</div>
         </div>
+        ${task.image ? `
+        <div class="flyout-section">
+            <span class="flyout-section-lbl">Foto Pekerjaan</span>
+            <div style="margin-top: 6px;">
+                <img src="${task.image}" alt="Foto Pekerjaan" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-color); display: block; max-height: 180px; object-fit: cover; cursor: pointer;" onclick="window.open('${task.image}', '_blank')">
+            </div>
+        </div>
+        ` : ''}
     `;
     
     panel.classList.remove('hidden');
@@ -1051,6 +1060,21 @@ function openTaskModal(editId = null) {
         document.getElementById('task-duration').value = task.duration.toString();
         document.getElementById('task-description').value = task.description;
         
+        // Reset and populate image values
+        document.getElementById('task-image-file').value = '';
+        tempUploadedImageBase64 = '';
+        const imageUrlInput = document.getElementById('task-image-url');
+        if (task.image) {
+            if (task.image.startsWith('data:')) {
+                tempUploadedImageBase64 = task.image;
+                imageUrlInput.value = '';
+            } else {
+                imageUrlInput.value = task.image;
+            }
+        } else {
+            imageUrlInput.value = '';
+        }
+        
         predContainer.innerHTML = tasks
             .filter(t => t.id !== editId)
             .map(t => {
@@ -1069,6 +1093,9 @@ function openTaskModal(editId = null) {
     } else {
         titleEl.innerText = 'Tambah Tugas Baru';
         document.getElementById('task-edit-id').value = '';
+        document.getElementById('task-image-file').value = '';
+        document.getElementById('task-image-url').value = '';
+        tempUploadedImageBase64 = '';
         
         predContainer.innerHTML = tasks.map(t => `
             <label class="pred-check-label">
@@ -1182,6 +1209,19 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-close-task-modal')?.addEventListener('click', closeTaskModal);
     document.getElementById('btn-cancel-task')?.addEventListener('click', closeTaskModal);
     
+    document.getElementById('task-image-file')?.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                tempUploadedImageBase64 = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        } else {
+            tempUploadedImageBase64 = '';
+        }
+    });
+
     document.getElementById('btn-add-subcon-trigger')?.addEventListener('click', openSubconModal);
     document.getElementById('btn-close-subcon-modal')?.addEventListener('click', closeSubconModal);
     document.getElementById('btn-cancel-subcon')?.addEventListener('click', closeSubconModal);
@@ -1242,6 +1282,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const duration = parseInt(document.getElementById('task-duration').value, 10);
         const description = document.getElementById('task-description').value.trim();
         
+        const imageUrl = document.getElementById('task-image-url').value.trim();
+        let image = '';
+        if (tempUploadedImageBase64) {
+            image = tempUploadedImageBase64;
+        } else if (imageUrl) {
+            image = imageUrl;
+        } else if (editId) {
+            const prev = tasks.find(x => x.id === editId);
+            if (prev && prev.image) {
+                if (document.getElementById('task-image-file').files.length === 0 && !imageUrl) {
+                    image = prev.image;
+                }
+            }
+        }
+        
         const endDate = addDays(startDate, duration - 1);
         
         const predCheckboxes = document.getElementsByName('pred-checkbox');
@@ -1272,7 +1327,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     duration,
                     endDate,
                     description,
-                    predecessors: selectedPreds
+                    predecessors: selectedPreds,
+                    image
                 };
                 
                 logEvent('validation', 'Architect', `Memperbarui rincian tugas "${title}" (ID: ${editId}).`);
@@ -1291,7 +1347,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 startDate,
                 duration,
                 endDate,
-                predecessors: selectedPreds
+                predecessors: selectedPreds,
+                image
             };
             
             tasks.push(tempTask);
@@ -1401,6 +1458,15 @@ window.shareTaskToWhatsApp = function(taskId) {
     
     let criticalText = task.critical ? 'Ya (Jalur Kritis CPM)' : 'Tidak';
     
+    let imageText = '';
+    if (task.image) {
+        if (task.image.startsWith('http')) {
+            imageText = `\n*Link Foto:* ${task.image}`;
+        } else {
+            imageText = `\n*Foto:* (Tersimpan lokal di dasbor)`;
+        }
+    }
+    
     const message = `*👷 SAPUTT PROJECT - DETAIL PEKERJAAN*
 ---------------------------------------
 *Proyek:* Penthouse Renovasi
@@ -1409,7 +1475,7 @@ window.shareTaskToWhatsApp = function(taskId) {
 *Jadwal:* ${task.startDate} s/d ${task.endDate} (${task.duration} Hari)
 *Status:* ${statusText}
 *Prioritas:* ${task.priority}
-*Kritis (CPM):* ${criticalText}
+*Kritis (CPM):* ${criticalText}${imageText}
 
 *Instruksi/Spesifikasi:*
 ${task.description || 'Tidak ada deskripsi pekerjaan.'}
