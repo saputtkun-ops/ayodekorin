@@ -1504,8 +1504,37 @@ ${task.description || 'Tidak ada deskripsi pekerjaan.'}
 _Dikirim via Saputt Project Architect Console_`;
 
     const encodedText = encodeURIComponent(message);
-    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
-    window.open(whatsappUrl, '_blank');
+    
+    // Detect mobile platform to force standard WhatsApp (non-business)
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    const isAndroid = /android/i.test(userAgent);
+    const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
+    
+    let whatsappUrl = "";
+    if (isAndroid) {
+        // Targets standard WhatsApp (com.whatsapp package) explicitly on Android
+        whatsappUrl = `intent://send/?text=${encodedText}#Intent;scheme=whatsapp;package=com.whatsapp;end`;
+    } else if (isIOS) {
+        // Targets standard WhatsApp (whatsapp-consumer://) on iOS
+        whatsappUrl = `whatsapp-consumer://send?text=${encodedText}`;
+    } else {
+        // Fallback for Desktop
+        whatsappUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
+    }
+    
+    if (isAndroid || isIOS) {
+        window.location.href = whatsappUrl;
+        
+        // Safeguard fallback: if standard WhatsApp is not installed, 
+        // fall back to universal web URL after a delay
+        setTimeout(() => {
+            if (document.hasFocus()) {
+                window.location.href = `https://api.whatsapp.com/send?text=${encodedText}`;
+            }
+        }, 1500);
+    } else {
+        window.open(whatsappUrl, '_blank');
+    }
 };
 
 // Upload image to anonymous file hosting (tmpfiles.org)
