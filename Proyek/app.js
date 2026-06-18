@@ -1,5 +1,5 @@
 /**
- * ConstructIQ - Multi-Subcon Dependency & Job Tracker Logic (Static JS Version)
+ * Saputt Project - Multi-Subcon Dependency & Job Tracker Logic (Static JS Version)
  */
 
 // Initial Data Configurations
@@ -1380,7 +1380,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     if (auditLogs.length === 0) {
-        logEvent('security', 'System Initiator', 'Sistem pelacakan ConstructIQ berhasil dimulai.');
+        logEvent('security', 'System Initiator', 'Sistem pelacakan Saputt Project berhasil dimulai.');
         logEvent('validation', 'System Scheduler', 'Model CPM dijalankan. Jalur kritis berhasil dihitung.');
     }
     
@@ -1401,7 +1401,7 @@ window.shareTaskToWhatsApp = function(taskId) {
     
     let criticalText = task.critical ? 'Ya (Jalur Kritis CPM)' : 'Tidak';
     
-    const message = `*👷 CONSTRUCTIQ - DETAIL PEKERJAAN*
+    const message = `*👷 SAPUTT PROJECT - DETAIL PEKERJAAN*
 ---------------------------------------
 *Proyek:* Penthouse Renovasi
 *Pekerjaan:* ${task.title}
@@ -1414,7 +1414,7 @@ window.shareTaskToWhatsApp = function(taskId) {
 *Instruksi/Spesifikasi:*
 ${task.description || 'Tidak ada deskripsi pekerjaan.'}
 ---------------------------------------
-_Dikirim via ConstructIQ Architect Console_`;
+_Dikirim via Saputt Project Architect Console_`;
 
     const encodedText = encodeURIComponent(message);
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
