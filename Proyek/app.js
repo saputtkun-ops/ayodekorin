@@ -730,48 +730,14 @@ function renderGantt() {
             opacity = '0.75';
         }
         
-        let dailySegmentsHtml = '';
-        if (activeGanttScale === 'days') {
-            let curDate = t.startDate;
-            for (let i = 0; i < t.duration; i++) {
-                const dateStr = curDate;
-                const status = getDayStatus(t, dateStr);
-                const isDayDone = status === 'DONE';
-                
-                dailySegmentsHtml += `
-                    <div class="gantt-day-segment" 
-                         style="flex: 1; height: 100%; border-right: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; background-color: rgba(255,255,255,0.01);">
-                         <button onclick="event.stopPropagation(); toggleDayStatus('${t.id}', '${dateStr}')"
-                                 title="${formatDateIndo(dateStr)}: ${isDayDone ? 'Selesai (Done)' : 'Belum Selesai (Tunda)'} - Klik untuk mengubah"
-                                 class="gantt-day-toggle-btn ${isDayDone ? 'done' : 'tunda'}"
-                                 style="z-index: 3;">
-                             ✓
-                         </button>
-                    </div>
-                `;
-                curDate = addDays(curDate, 1);
-            }
-        } else {
-            // Weeks scale fallback
-            dailySegmentsHtml = `
-                <div class="gantt-bar-progress" style="width: ${progressWidthPercent}%; height: 100%; background-color: rgba(${hexToRgb(barColor)}, 0.2);"></div>
-            `;
-        }
-        
         barsHtml += `
             <div class="gantt-bar-row">
                 <div class="gantt-task-bar ${barClass}" 
-                     style="left: ${barLeft}px; width: ${barWidth}px; border-color: ${barColor}; opacity: ${opacity}; display: flex; overflow: hidden; position: relative;"
+                     style="left: ${barLeft}px; width: ${barWidth}px; background-color: rgba(${hexToRgb(barColor)}, 0.25); border-color: ${barColor}; opacity: ${opacity};"
                      onclick="inspectTask('${t.id}')">
-                     
-                    <!-- Daily segments or progress bar -->
-                    <div style="display: flex; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1;">
-                        ${dailySegmentsHtml}
-                    </div>
-                    
-                    <!-- Text Watermark Overlay -->
-                    <span class="gantt-bar-title" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); z-index: 2; pointer-events: none; font-size: 10px; font-weight: 700; color: white; opacity: 0.15; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: calc(100% - 16px);">
-                        ${isBlocked ? '🔒 ' : ''}${t.title} (${t.progress}%)
+                    <div class="gantt-bar-progress" style="width: ${progressWidthPercent}%; background-color: rgba(${hexToRgb(barColor)}, 0.2);"></div>
+                    <span class="gantt-bar-title">
+                        ${isBlocked ? '🔒 ' : ''}${t.title}
                     </span>
                 </div>
             </div>
@@ -955,23 +921,6 @@ function renderSubcontractors() {
         const done = subTasks.filter(t => t.status === 'DONE').length;
         const inProgress = subTasks.filter(t => t.status === 'PROGRES').length;
         
-        // Calculate duration-weighted completion percentage
-        let totalDuration = 0;
-        let doneDays = 0;
-        
-        subTasks.forEach(t => {
-            totalDuration += t.duration;
-            let curDate = t.startDate;
-            for (let i = 0; i < t.duration; i++) {
-                if (getDayStatus(t, curDate) === 'DONE') {
-                    doneDays++;
-                }
-                curDate = addDays(curDate, 1);
-            }
-        });
-        
-        const subconProgress = totalDuration > 0 ? Math.round((doneDays / totalDuration) * 100) : 0;
-        
         subconHtml += `
             <div class="subcon-card" style="--subcon-color: ${sub.color}">
                 <div class="subcon-card-header">
@@ -989,17 +938,6 @@ function renderSubcontractors() {
                     <div class="subcon-stat-box">
                         <span class="subcon-stat-lbl">Pekerjaan Selesai</span>
                         <span class="subcon-stat-val text-emerald">${done} / ${total}</span>
-                    </div>
-                </div>
-                
-                <!-- Subcon Progress Bar -->
-                <div class="subcon-progress-container" style="margin: 12px 0; padding: 0 4px;">
-                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">
-                        <span>Progres Pekerjaan</span>
-                        <span style="font-weight: 600; color: var(--text-main);">${subconProgress}%</span>
-                    </div>
-                    <div style="background-color: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 100px; height: 6px; overflow: hidden; position: relative; width: 100%;">
-                        <div style="background-color: ${sub.color}; height: 100%; border-radius: 100px; width: ${subconProgress}%; transition: width 0.3s ease;"></div>
                     </div>
                 </div>
                 
@@ -1470,7 +1408,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const taskIdx = tasks.findIndex(t => t.id === editId);
             if (taskIdx > -1) {
                 const prev = tasks[taskIdx];
-                const statusChanged = prev.status !== status || prev.startDate !== startDate || prev.duration !== duration;
                 
                 tasks[taskIdx] = {
                     ...prev,
@@ -1485,17 +1422,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     predecessors: selectedPreds,
                     image
                 };
-                
-                if (statusChanged) {
-                    tasks[taskIdx].dailyStatus = {};
-                    let curDate = startDate;
-                    for (let i = 0; i < duration; i++) {
-                        tasks[taskIdx].dailyStatus[curDate] = status === 'DONE' ? 'DONE' : 'TUNDA';
-                        curDate = addDays(curDate, 1);
-                    }
-                }
-                
-                recalculateTaskProgress(tasks[taskIdx]);
                 
                 logEvent('validation', 'Architect', `Memperbarui rincian tugas "${title}" (ID: ${editId}).`);
                 showToast('Tugas berhasil diperbarui!', 'success');
@@ -1514,17 +1440,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 duration,
                 endDate,
                 predecessors: selectedPreds,
-                image,
-                dailyStatus: {}
+                image
             };
             
-            let curDate = startDate;
-            for (let i = 0; i < duration; i++) {
-                tempTask.dailyStatus[curDate] = status === 'DONE' ? 'DONE' : 'TUNDA';
-                curDate = addDays(curDate, 1);
-            }
-            
-            recalculateTaskProgress(tempTask);
             tasks.push(tempTask);
             logEvent('validation', 'Architect', `Mendaftarkan tugas konstruksi baru: "${title}".`);
             showToast('Tugas baru berhasil ditambahkan!', 'success');
@@ -1602,15 +1520,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const oldStatus = task.status;
             task.status = targetStatus;
-            
-            // Align daily status with the new status
-            task.dailyStatus = {};
-            let curDate = task.startDate;
-            for (let i = 0; i < task.duration; i++) {
-                task.dailyStatus[curDate] = targetStatus === 'DONE' ? 'DONE' : 'TUNDA';
-                curDate = addDays(curDate, 1);
-            }
-            recalculateTaskProgress(task);
             
             logEvent('validation', 'Architect', `Mengubah status tugas "${task.title}" dari ${oldStatus} menjadi ${targetStatus}.`);
             showToast(`Status tugas diubah ke ${targetStatus}`, 'success');
@@ -1977,86 +1886,4 @@ window.showProjectMenu = function(projectId, e) {
     setTimeout(() => {
         document.addEventListener('click', closeMenu);
     }, 50);
-};
-
-// Day-by-day task segment progress helpers
-window.getDayStatus = function(task, dateStr) {
-    if (!task.dailyStatus) {
-        task.dailyStatus = {};
-    }
-    
-    // If explicit status is saved, return it
-    if (task.dailyStatus[dateStr] !== undefined) {
-        return task.dailyStatus[dateStr];
-    }
-    
-    // Default logic based on overall task status
-    if (task.status === 'DONE') return 'DONE';
-    return 'TUNDA';
-};
-
-window.toggleDayStatus = function(taskId, dateStr) {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-    
-    // Check if task is blocked. If it is blocked, they can't mark segments as DONE!
-    const isBlocked = isTaskBlocked(task);
-    const current = getDayStatus(task, dateStr);
-    
-    if (current === 'TUNDA' && isBlocked) {
-        // Find unfinished predecessors to display in error toast
-        const unfinishedPreds = [];
-        task.predecessors.forEach(pId => {
-            const pred = tasks.find(x => x.id === pId);
-            if (pred && pred.status !== 'DONE') {
-                unfinishedPreds.push(pred);
-            }
-        });
-        const names = unfinishedPreds.map(p => `"${p.title}"`).join(', ');
-        showToast(`Gagal merubah status hari ini! Tugas ini terkunci. Harap selesaikan pendahulu terlebih dahulu: ${names}`, 'error');
-        return;
-    }
-    
-    const nextStatus = current === 'DONE' ? 'TUNDA' : 'DONE';
-    
-    if (!task.dailyStatus) {
-        task.dailyStatus = {};
-    }
-    task.dailyStatus[dateStr] = nextStatus;
-    
-    recalculateTaskProgress(task);
-    
-    saveToStorage();
-    updateAllViews();
-};
-
-window.recalculateTaskProgress = function(task) {
-    // Generate dates list
-    const dates = [];
-    let curDate = task.startDate;
-    for (let i = 0; i < task.duration; i++) {
-        dates.push(curDate);
-        curDate = addDays(curDate, 1);
-    }
-    
-    let doneCount = 0;
-    dates.forEach(d => {
-        if (getDayStatus(task, d) === 'DONE') {
-            doneCount++;
-        }
-    });
-    
-    const progress = Math.round((doneCount / task.duration) * 100);
-    task.progress = progress;
-    
-    // Update overall status based on progress
-    if (progress === 100) {
-        task.status = 'DONE';
-    } else if (progress === 0) {
-        if (task.status !== 'PROGRES') {
-            task.status = 'TUNDA';
-        }
-    } else {
-        task.status = 'PROGRES';
-    }
 };
