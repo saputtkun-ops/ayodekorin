@@ -123,9 +123,35 @@ const defaultTasks = [
 ];
 
 // State variables
+let projects = JSON.parse(localStorage.getItem('saputt_projects'));
+let activeProjectId = localStorage.getItem('saputt_active_project_id');
+
+// Migrate legacy single-project data if it exists
+if (!projects) {
+    const legacyTasks = JSON.parse(localStorage.getItem('c_tasks'));
+    const legacyLogs = JSON.parse(localStorage.getItem('c_logs') || '[]');
+    
+    projects = [
+        { id: 'p-1', name: 'Penthouse Renovasi' }
+    ];
+    activeProjectId = 'p-1';
+    
+    localStorage.setItem('saputt_projects', JSON.stringify(projects));
+    localStorage.setItem('saputt_active_project_id', activeProjectId);
+    
+    // Save legacy tasks and logs under the new structure
+    localStorage.setItem('saputt_tasks_p-1', JSON.stringify(legacyTasks || defaultTasks));
+    localStorage.setItem('saputt_logs_p-1', JSON.stringify(legacyLogs));
+}
+
+if (!activeProjectId) {
+    activeProjectId = projects[0].id;
+    localStorage.setItem('saputt_active_project_id', activeProjectId);
+}
+
 let subcontractors = JSON.parse(localStorage.getItem('c_subcons') || 'null') || defaultSubcontractors;
-let tasks = JSON.parse(localStorage.getItem('c_tasks') || 'null') || defaultTasks;
-let auditLogs = JSON.parse(localStorage.getItem('c_logs') || 'null') || [];
+let tasks = JSON.parse(localStorage.getItem(`saputt_tasks_${activeProjectId}`)) || defaultTasks;
+let auditLogs = JSON.parse(localStorage.getItem(`saputt_logs_${activeProjectId}`)) || [];
 let activeTab = 'dashboard';
 let activeGanttScale = 'days';
 let dragSourceTaskId = null;
@@ -165,8 +191,10 @@ function logEvent(type, actor, description, status = 'OK') {
 // Storage utility
 function saveToStorage() {
     localStorage.setItem('c_subcons', JSON.stringify(subcontractors));
-    localStorage.setItem('c_tasks', JSON.stringify(tasks));
-    localStorage.setItem('c_logs', JSON.stringify(auditLogs));
+    localStorage.setItem(`saputt_tasks_${activeProjectId}`, JSON.stringify(tasks));
+    localStorage.setItem(`saputt_logs_${activeProjectId}`, JSON.stringify(auditLogs));
+    localStorage.setItem('saputt_projects', JSON.stringify(projects));
+    localStorage.setItem('saputt_active_project_id', activeProjectId);
 }
 
 // Core Algorithms
@@ -1154,6 +1182,7 @@ document.addEventListener('DOMContentLoaded', () => {
     solveCPM();
     renderBanners();
     renderDashboard();
+    renderProjectSheets();
     
     const allNavItems = document.querySelectorAll('.nav-item, .mobile-nav-item');
     allNavItems.forEach(btn => {
@@ -1488,9 +1517,12 @@ window.shareTaskToWhatsApp = function(taskId) {
         }
     }
     
+    const activeProject = projects.find(p => p.id === activeProjectId);
+    const projectName = activeProject ? activeProject.name : 'Penthouse Renovasi';
+    
     const message = `*👷 SAPUTT PROJECT - DETAIL PEKERJAAN*
 ---------------------------------------
-*Proyek:* Penthouse Renovasi
+*Proyek:* ${projectName}
 *Pekerjaan:* ${task.title}
 *Subkontraktor:* ${subconName}
 *Jadwal:* ${task.startDate} s/d ${task.endDate} (${task.duration} Hari)
@@ -1555,4 +1587,262 @@ async function uploadImage(file) {
         console.error('Failed to upload image', e);
     }
     return null;
+}
+
+// Project Sheets Management Logic
+window.renderProjectSheets = function() {
+    const container = document.getElementById('sheets-container');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    projects.forEach(proj => {
+        const isActive = proj.id === activeProjectId;
+        
+        const tab = document.createElement('div');
+        tab.className = `sheet-tab ${isActive ? 'active' : ''}`;
+        tab.setAttribute('data-project-id', proj.id);
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'sheet-name';
+        nameSpan.innerText = proj.name;
+        
+        // Double click to rename
+        tab.addEventListener('dblclick', () => {
+            promptRenameProject(proj.id);
+        });
+        
+        // Click to switch project
+        tab.addEventListener('click', (e) => {
+            if (e.target.closest('.sheet-actions-btn')) return;
+            switchProject(proj.id);
+        });
+        
+        tab.appendChild(nameSpan);
+        
+        // Add a small actions/edit icon
+        const editBtn = document.createElement('span');
+        editBtn.className = 'sheet-actions-btn';
+        editBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm0 7a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm0 7a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"></path>
+            </svg>
+        `;
+        editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showProjectMenu(proj.id, e);
+        });
+        tab.appendChild(editBtn);
+        
+        container.appendChild(tab);
+    });
+    
+    // Add sheet button (+)
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-sheet-btn';
+    addBtn.id = 'btn-add-project';
+    addBtn.innerText = '+';
+    addBtn.title = 'Tambah Proyek Baru';
+    addBtn.addEventListener('click', () => {
+        addNewProject();
+    });
+    container.appendChild(addBtn);
+    
+    // Update active project label in sidebar
+    const activeProject = projects.find(p => p.id === activeProjectId);
+    const projectValEl = document.querySelector('.project-val');
+    if (projectValEl && activeProject) {
+        projectValEl.innerText = activeProject.name;
+    }
+};
+
+window.promptRenameProject = function(projectId) {
+    const proj = projects.find(p => p.id === projectId);
+    if (!proj) return;
+    
+    const newName = prompt("Ubah Nama Proyek:", proj.name);
+    if (newName && newName.trim() !== '') {
+        const oldName = proj.name;
+        proj.name = newName.trim();
+        saveToStorage();
+        renderProjectSheets();
+        logEvent('modification', 'Manajer Proyek', `Nama proyek diubah dari "${oldName}" menjadi "${proj.name}".`);
+    }
+};
+
+window.addNewProject = function() {
+    const name = prompt("Nama Proyek Baru:");
+    if (!name || name.trim() === '') return;
+    
+    const newId = 'p-' + Date.now();
+    const newProject = {
+        id: newId,
+        name: name.trim()
+    };
+    
+    projects.push(newProject);
+    
+    // Save current active project tasks & logs before switching
+    localStorage.setItem(`saputt_tasks_${activeProjectId}`, JSON.stringify(tasks));
+    localStorage.setItem(`saputt_logs_${activeProjectId}`, JSON.stringify(auditLogs));
+    
+    // Set active to new project
+    activeProjectId = newId;
+    
+    // Initialize empty tasks (start with a dummy placeholder task)
+    tasks = [
+        {
+            id: 'task-1',
+            title: 'Pekerjaan Persiapan Awal',
+            startDate: new Date().toISOString().split('T')[0],
+            endDate: addDays(new Date().toISOString().split('T')[0], 5),
+            duration: 5,
+            progress: 0,
+            status: 'TODO',
+            priority: 'Medium',
+            subconId: subcontractors[0]?.id || '',
+            critical: true,
+            predecessors: [],
+            description: 'Persiapan awal proyek baru.'
+        }
+    ];
+    auditLogs = [];
+    
+    saveToStorage();
+    renderProjectSheets();
+    
+    // Force re-render of all views for the new active project
+    updateAllViews();
+    
+    logEvent('creation', 'Manajer Proyek', `Proyek baru "${newProject.name}" berhasil dibuat.`);
+};
+
+window.deleteProject = function(projectId) {
+    if (projects.length <= 1) {
+        alert("Tidak dapat menghapus satu-satunya proyek yang tersisa.");
+        return;
+    }
+    
+    const proj = projects.find(p => p.id === projectId);
+    if (!proj) return;
+    
+    if (confirm(`Apakah Anda yakin ingin menghapus proyek "${proj.name}" beserta seluruh tugas dan catatan lognya? Tindakan ini tidak dapat dibatalkan.`)) {
+        projects = projects.filter(p => p.id !== projectId);
+        
+        localStorage.removeItem(`saputt_tasks_${projectId}`);
+        localStorage.removeItem(`saputt_logs_${projectId}`);
+        
+        if (activeProjectId === projectId) {
+            activeProjectId = projects[0].id;
+            tasks = JSON.parse(localStorage.getItem(`saputt_tasks_${activeProjectId}`)) || defaultTasks;
+            auditLogs = JSON.parse(localStorage.getItem(`saputt_logs_${activeProjectId}`)) || [];
+        }
+        
+        saveToStorage();
+        renderProjectSheets();
+        updateAllViews();
+        
+        logEvent('deletion', 'Manajer Proyek', `Proyek "${proj.name}" beserta datanya telah dihapus.`);
+    }
+};
+
+window.switchProject = function(projectId) {
+    if (activeProjectId === projectId) return;
+    
+    // Save current project data first
+    localStorage.setItem(`saputt_tasks_${activeProjectId}`, JSON.stringify(tasks));
+    localStorage.setItem(`saputt_logs_${activeProjectId}`, JSON.stringify(auditLogs));
+    
+    // Switch active project
+    activeProjectId = projectId;
+    localStorage.setItem('saputt_active_project_id', activeProjectId);
+    
+    // Load new project data
+    tasks = JSON.parse(localStorage.getItem(`saputt_tasks_${activeProjectId}`)) || defaultTasks;
+    auditLogs = JSON.parse(localStorage.getItem(`saputt_logs_${activeProjectId}`)) || [];
+    
+    // Solve CPM for the new project tasks
+    solveCPM();
+    
+    // Render sheet tabs and update all views
+    renderProjectSheets();
+    updateAllViews();
+};
+
+window.showProjectMenu = function(projectId, e) {
+    const proj = projects.find(p => p.id === projectId);
+    if (!proj) return;
+    
+    // Remove existing menus
+    const existingMenu = document.getElementById('project-tab-menu');
+    if (existingMenu) existingMenu.remove();
+    
+    const menu = document.createElement('div');
+    menu.id = 'project-tab-menu';
+    menu.style.position = 'fixed';
+    menu.style.top = `${e.clientY + 5}px`;
+    menu.style.left = `${e.clientX}px`;
+    menu.style.backgroundColor = '#1e293b';
+    menu.style.border = '1px solid rgba(255, 255, 255, 0.1)';
+    menu.style.borderRadius = '6px';
+    menu.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.3)';
+    menu.style.zIndex = '9999';
+    menu.style.padding = '4px 0';
+    menu.style.display = 'flex';
+    menu.style.flexDirection = 'column';
+    menu.style.minWidth = '120px';
+    
+    const renameItem = document.createElement('button');
+    renameItem.innerHTML = '✏️ Ubah Nama';
+    renameItem.style.background = 'none';
+    renameItem.style.border = 'none';
+    renameItem.style.color = '#f8fafc';
+    renameItem.style.padding = '8px 12px';
+    renameItem.style.textAlign = 'left';
+    renameItem.style.cursor = 'pointer';
+    renameItem.style.fontSize = '13px';
+    renameItem.addEventListener('click', () => {
+        menu.remove();
+        promptRenameProject(projectId);
+    });
+    renameItem.addEventListener('mouseenter', () => renameItem.style.backgroundColor = 'rgba(255,255,255,0.05)');
+    renameItem.addEventListener('mouseleave', () => renameItem.style.backgroundColor = 'transparent');
+    
+    const deleteItem = document.createElement('button');
+    deleteItem.innerHTML = '🗑️ Hapus Proyek';
+    deleteItem.style.background = 'none';
+    deleteItem.style.border = 'none';
+    deleteItem.style.color = '#f43f5e';
+    deleteItem.style.padding = '8px 12px';
+    deleteItem.style.textAlign = 'left';
+    deleteItem.style.cursor = 'pointer';
+    deleteItem.style.fontSize = '13px';
+    if (projects.length <= 1) {
+        deleteItem.style.opacity = '0.5';
+        deleteItem.style.cursor = 'not-allowed';
+    } else {
+        deleteItem.addEventListener('click', () => {
+            menu.remove();
+            deleteProject(projectId);
+        });
+        deleteItem.addEventListener('mouseenter', () => deleteItem.style.backgroundColor = 'rgba(244, 63, 94, 0.1)');
+        deleteItem.addEventListener('mouseleave', () => deleteItem.style.backgroundColor = 'transparent');
+    }
+    
+    menu.appendChild(renameItem);
+    menu.appendChild(deleteItem);
+    document.body.appendChild(menu);
+    
+    // Close menu when clicking outside
+    const closeMenu = (event) => {
+        if (!menu.contains(event.target)) {
+            menu.remove();
+            document.removeEventListener('click', closeMenu);
+        }
+    };
+    
+    setTimeout(() => {
+        document.addEventListener('click', closeMenu);
+    }, 50);
+};
 }
