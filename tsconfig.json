@@ -20,5 +20,5 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "Proyek"]
+  "include": ["src"]
 }

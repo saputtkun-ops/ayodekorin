@@ -1,53 +1,9 @@
 /**
- * ConstructIQ - Multi-Subcon Dependency & Job Tracker Logic
- * Bertindak sebagai Full-Stack Software Architect
+ * ConstructIQ - Multi-Subcon Dependency & Job Tracker Logic (Static JS Version)
  */
 
-// Interface Definitions
-interface Subcontractor {
-    id: string;
-    name: string;
-    specialty: string;
-    phone: string;
-    color: string;
-}
-
-type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
-type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH';
-type LogType = 'validation' | 'security' | 'dependency';
-
-interface Task {
-    id: string;
-    title: string;
-    description: string;
-    subconId: string;
-    status: TaskStatus;
-    priority: TaskPriority;
-    startDate: string; // YYYY-MM-DD
-    duration: number; // in days
-    endDate: string; // YYYY-MM-DD
-    predecessors: string[]; // Task IDs
-    
-    // CPM calculated fields (relative to project start day 0)
-    es?: number; // Early Start
-    ef?: number; // Early Finish
-    ls?: number; // Late Start
-    lf?: number; // Late Finish
-    slack?: number; // Float slack
-    critical?: boolean;
-}
-
-interface AuditLog {
-    id: string;
-    timestamp: string;
-    type: LogType;
-    actor: string;
-    description: string;
-    status: 'OK' | 'BLOCKED';
-}
-
 // Initial Data Configurations
-const defaultSubcontractors: Subcontractor[] = [
+const defaultSubcontractors = [
     { id: 'sub-1', name: 'PT Sipil Kokoh', specialty: 'Sipil & Pekerjaan Struktur', phone: '08112233445', color: '#f43f5e' },
     { id: 'sub-2', name: 'CV Terang Abadi', specialty: 'Instalasi Listrik & ME', phone: '08123456789', color: '#f59e0b' },
     { id: 'sub-3', name: 'Mahakarya Kayu', specialty: 'Desain Interior & Kayu Custom', phone: '08134567890', color: '#10b981' },
@@ -55,7 +11,7 @@ const defaultSubcontractors: Subcontractor[] = [
     { id: 'sub-5', name: 'Glass & Metal Indo', specialty: 'Konstruksi Aluminium & Kaca', phone: '08156789012', color: '#06b6d4' }
 ];
 
-const defaultTasks: Task[] = [
+const defaultTasks = [
     {
         id: 'task-1',
         title: 'Pembongkaran Dinding & Pembersihan Area',
@@ -167,22 +123,22 @@ const defaultTasks: Task[] = [
 ];
 
 // State variables
-let subcontractors: Subcontractor[] = JSON.parse(localStorage.getItem('c_subcons') || 'null') || defaultSubcontractors;
-let tasks: Task[] = JSON.parse(localStorage.getItem('c_tasks') || 'null') || defaultTasks;
-let auditLogs: AuditLog[] = JSON.parse(localStorage.getItem('c_logs') || 'null') || [];
+let subcontractors = JSON.parse(localStorage.getItem('c_subcons') || 'null') || defaultSubcontractors;
+let tasks = JSON.parse(localStorage.getItem('c_tasks') || 'null') || defaultTasks;
+let auditLogs = JSON.parse(localStorage.getItem('c_logs') || 'null') || [];
 let activeTab = 'dashboard';
-let activeGanttScale: 'days' | 'weeks' = 'days';
-let dragSourceTaskId: string | null = null;
-let currentSelectedTaskId: string | null = null;
+let activeGanttScale = 'days';
+let dragSourceTaskId = null;
+let currentSelectedTaskId = null;
 
 // Date helpers
-function addDays(dateStr: string, days: number): string {
+function addDays(dateStr, days) {
     const date = new Date(dateStr);
     date.setDate(date.getDate() + days);
     return date.toISOString().split('T')[0];
 }
 
-function getDaysBetween(startStr: string, endStr: string): number {
+function getDaysBetween(startStr, endStr) {
     const start = new Date(startStr);
     const end = new Date(endStr);
     const diffTime = end.getTime() - start.getTime();
@@ -190,8 +146,8 @@ function getDaysBetween(startStr: string, endStr: string): number {
 }
 
 // Log utility
-function logEvent(type: LogType, actor: string, description: string, status: 'OK' | 'BLOCKED' = 'OK') {
-    const newLog: AuditLog = {
+function logEvent(type, actor, description, status = 'OK') {
+    const newLog = {
         id: 'log-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
         timestamp: new Date().toLocaleTimeString('id-ID', { hour12: false }) + ' ' + new Date().toLocaleDateString('id-ID'),
         type,
@@ -215,28 +171,24 @@ function saveToStorage() {
 
 /**
  * 1. Cycle Detection (DAG validation)
- * Checks if adding predecessorId to taskId forms a cycle.
  */
-function checkCycle(taskId: string, predecessorId: string): boolean {
+function checkCycle(taskId, predecessorId) {
     if (taskId === predecessorId) return true;
     
-    // Build adjacency list for predecessors
-    const adj = new Map<string, string[]>();
+    const adj = new Map();
     tasks.forEach(t => {
         adj.set(t.id, [...t.predecessors]);
     });
     
-    // Temporarily inject the new connection
     const currentPreds = adj.get(taskId) || [];
     if (!currentPreds.includes(predecessorId)) {
         adj.set(taskId, [...currentPreds, predecessorId]);
     }
     
-    // Standard DFS to detect cycle
-    const visited = new Set<string>();
-    const recStack = new Set<string>();
+    const visited = new Set();
+    const recStack = new Set();
     
-    function dfs(node: string): boolean {
+    function dfs(node) {
         if (recStack.has(node)) return true;
         if (visited.has(node)) return false;
         
@@ -252,7 +204,6 @@ function checkCycle(taskId: string, predecessorId: string): boolean {
         return false;
     }
     
-    // Check all tasks
     for (const t of tasks) {
         if (dfs(t.id)) return true;
     }
@@ -266,27 +217,21 @@ function checkCycle(taskId: string, predecessorId: string): boolean {
 function solveCPM() {
     if (tasks.length === 0) return;
 
-    // Reset CPM values
     tasks.forEach(t => {
         t.es = 0; t.ef = 0; t.ls = 0; t.lf = 0; t.slack = 0; t.critical = false;
     });
 
-    // 1. Calculate relative offsets in days
-    // Find absolute start date (earliest start date among all tasks with no predecessors)
     let minDateStr = tasks[0].startDate;
     tasks.forEach(t => {
         if (t.startDate < minDateStr) minDateStr = t.startDate;
     });
     
-    const projectBaseDate = new Date(minDateStr);
-    
-    function getOffset(dateStr: string): number {
+    function getOffset(dateStr) {
         return getDaysBetween(minDateStr, dateStr);
     }
     
-    // 2. Topological Sort (Kahn's Algorithm)
-    const inDegree = new Map<string, number>();
-    const adj = new Map<string, string[]>(); // u -> v (u blocks v, meaning u is pred of v)
+    const inDegree = new Map();
+    const adj = new Map();
     
     tasks.forEach(t => {
         inDegree.set(t.id, 0);
@@ -302,62 +247,55 @@ function solveCPM() {
         });
     });
     
-    const queue: string[] = [];
+    const queue = [];
     inDegree.forEach((deg, id) => {
         if (deg === 0) queue.push(id);
     });
     
-    const topoOrder: string[] = [];
+    const topoOrder = [];
     while (queue.length > 0) {
-        const u = queue.shift()!;
+        const u = queue.shift();
         topoOrder.push(u);
         const neighbors = adj.get(u) || [];
         neighbors.forEach(v => {
-            inDegree.set(v, inDegree.get(v)! - 1);
+            inDegree.set(v, inDegree.get(v) - 1);
             if (inDegree.get(v) === 0) queue.push(v);
         });
     }
 
-    // Graph must be DAG
     if (topoOrder.length !== tasks.length) {
         console.error("Dependency cycle detected during CPM calculation.");
         return;
     }
 
-    // 3. Forward Pass (Calculate ES and EF)
-    const tasksMap = new Map<string, Task>();
+    const tasksMap = new Map();
     tasks.forEach(t => tasksMap.set(t.id, t));
 
     topoOrder.forEach(id => {
-        const t = tasksMap.get(id)!;
+        const t = tasksMap.get(id);
         let maxEF = 0;
         
         t.predecessors.forEach(pId => {
-            const pred = tasksMap.get(pId)!;
-            if (pred.ef! > maxEF) {
-                maxEF = pred.ef!;
+            const pred = tasksMap.get(pId);
+            if (pred.ef > maxEF) {
+                maxEF = pred.ef;
             }
         });
         
-        // ES is either max of predecessors' EF, or the task's own scheduled start offset
         const scheduledOffset = getOffset(t.startDate);
         t.es = Math.max(maxEF, scheduledOffset);
         t.ef = t.es + t.duration;
     });
 
-    // Project duration (T) is max EF
     let projectDuration = 0;
     tasks.forEach(t => {
-        if (t.ef! > projectDuration) projectDuration = t.ef!;
+        if (t.ef > projectDuration) projectDuration = t.ef;
     });
 
-    // 4. Backward Pass (Calculate LS and LF)
-    // Initialize LF of final nodes to project duration
     topoOrder.slice().reverse().forEach(id => {
-        const t = tasksMap.get(id)!;
+        const t = tasksMap.get(id);
         
-        // Find successors
-        const successors: Task[] = [];
+        const successors = [];
         tasks.forEach(other => {
             if (other.predecessors.includes(id)) successors.push(other);
         });
@@ -367,41 +305,34 @@ function solveCPM() {
         } else {
             let minLS = projectDuration;
             successors.forEach(s => {
-                if (s.ls! < minLS) minLS = s.ls!;
+                if (s.ls < minLS) minLS = s.ls;
             });
             t.lf = minLS;
         }
         
-        t.ls = t.lf! - t.duration;
-        t.slack = t.ls - t.es!;
-        t.critical = Math.abs(t.slack) < 0.001; // Slack is 0
+        t.ls = t.lf - t.duration;
+        t.slack = t.ls - t.es;
+        t.critical = Math.abs(t.slack) < 0.001;
     });
 }
 
 /**
- * 3. Evaluate Date Cascades and Strict Predecessor Rules
- * Updates tasks' actual dates based on strict predecessor end dates
+ * 3. Evaluate Date Cascades
  */
-function evaluateScheduleCascades(): boolean {
+function evaluateScheduleCascades() {
     let changed = false;
     let iterations = 0;
     const maxIterations = 100;
     
-    // Run iterative adjustment until stable (relaxation method)
     do {
         changed = false;
         for (let i = 0; i < tasks.length; i++) {
             const t = tasks[i];
             let requiredMinStart = t.startDate;
             
-            // Check predecessor end dates
             for (const pId of t.predecessors) {
                 const pred = tasks.find(x => x.id === pId);
                 if (pred) {
-                    // Predecessor must end before successor starts.
-                    // If predecessor ends at D, successor can start at D+1.
-                    // Wait, let's treat duration as inclusive:
-                    // Task starts 19 Jun, duration 3 days: work days are 19, 20, 21. Next starts 22 Jun.
                     const predEnd = pred.endDate;
                     const nextDay = addDays(predEnd, 1);
                     if (nextDay > requiredMinStart) {
@@ -424,11 +355,8 @@ function evaluateScheduleCascades(): boolean {
     return iterations > 1;
 }
 
-/**
- * Checks if there are any date inconsistencies (e.g. successors starting before predecessors finish)
- */
-function detectScheduleConflicts(): string[] {
-    const conflicts: string[] = [];
+function detectScheduleConflicts() {
+    const conflicts = [];
     tasks.forEach(t => {
         t.predecessors.forEach(pId => {
             const pred = tasks.find(x => x.id === pId);
@@ -444,11 +372,7 @@ function detectScheduleConflicts(): string[] {
     return conflicts;
 }
 
-/**
- * Check if a task is locked/blocked
- * A task is blocked if it is not completed AND at least one predecessor is NOT completed (DONE)
- */
-function isTaskBlocked(task: Task): boolean {
+function isTaskBlocked(task) {
     if (task.status === 'DONE') return false;
     for (const pId of task.predecessors) {
         const pred = tasks.find(x => x.id === pId);
@@ -461,10 +385,9 @@ function isTaskBlocked(task: Task): boolean {
 
 // UI Rendering Logic
 
-// Display Banner Alert
 function renderBanners() {
-    const banner = document.getElementById('dependency-warning-banner')!;
-    const warningText = document.getElementById('dependency-warning-text')!;
+    const banner = document.getElementById('dependency-warning-banner');
+    const warningText = document.getElementById('dependency-warning-text');
     const conflicts = detectScheduleConflicts();
     
     if (conflicts.length > 0) {
@@ -475,9 +398,8 @@ function renderBanners() {
     }
 }
 
-// Show Toast
-function showToast(message: string, type: 'success' | 'error' | 'info' = 'info') {
-    const container = document.getElementById('toast-container')!;
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     
@@ -505,38 +427,30 @@ function showToast(message: string, type: 'success' | 'error' | 'info' = 'info')
     }, 4000);
 }
 
-// Render Dashboard KPI Cards and Charts
 function renderDashboard() {
-    // 1. Calculate overall progress
     const completedTasks = tasks.filter(t => t.status === 'DONE');
     const progressPercent = tasks.length > 0 ? Math.round((completedTasks.length / tasks.length) * 100) : 0;
     
-    document.getElementById('stat-project-progress')!.innerText = `${progressPercent}%`;
-    const circle = document.getElementById('progress-circle') as SVGCircleElement | null;
+    document.getElementById('stat-project-progress').innerText = `${progressPercent}%`;
+    const circle = document.getElementById('progress-circle');
     if (circle) {
-        // Circumference is 2 * PI * r = 2 * 3.14159 * 24 = 150.79
         const offset = 150.79 - (progressPercent / 100) * 150.79;
         circle.style.strokeDashoffset = offset.toString();
     }
     
-    // 2. Blocked tasks
     const blockedCount = tasks.filter(t => isTaskBlocked(t)).length;
-    document.getElementById('stat-blocked-tasks')!.innerText = blockedCount.toString();
+    document.getElementById('stat-blocked-tasks').innerText = blockedCount.toString();
     
-    // 3. Critical Path
     const criticalTasks = tasks.filter(t => t.critical);
-    document.getElementById('stat-critical-path-count')!.innerText = `${criticalTasks.length} Tugas`;
+    document.getElementById('stat-critical-path-count').innerText = `${criticalTasks.length} Tugas`;
     
-    // 4. Active Subcons
     const uniqueSubconIds = new Set(tasks.map(t => t.subconId));
-    document.getElementById('stat-active-subcons')!.innerText = uniqueSubconIds.size.toString();
+    document.getElementById('stat-active-subcons').innerText = uniqueSubconIds.size.toString();
     
-    // 5. Critical Path Visual Chain
-    const cpmContainer = document.getElementById('cpm-flow-list')!;
+    const cpmContainer = document.getElementById('cpm-flow-list');
     if (criticalTasks.length === 0) {
         cpmContainer.innerHTML = `<div class="empty-state">Tidak ada jalur kritis yang terhitung.</div>`;
     } else {
-        // Sort critical tasks by their ES (early start offset)
         const sortedCritical = criticalTasks.slice().sort((a, b) => (a.es || 0) - (b.es || 0));
         
         let cpmHtml = '';
@@ -563,15 +477,14 @@ function renderDashboard() {
         cpmContainer.innerHTML = cpmHtml;
     }
     
-    // 6. Subcontractor Workload distribution bars
-    const distContainer = document.getElementById('subcon-distribution-list')!;
+    const distContainer = document.getElementById('subcon-distribution-list');
     if (subcontractors.length === 0) {
         distContainer.innerHTML = `<div class="empty-state">Belum ada subkontraktor terdaftar.</div>`;
     } else {
         let distHtml = '';
         subcontractors.forEach(sub => {
             const subTasks = tasks.filter(t => t.subconId === sub.id);
-            const totalHours = subTasks.reduce((sum, t) => sum + t.duration * 8, 0); // 8 working hours per day
+            const totalHours = subTasks.reduce((sum, t) => sum + t.duration * 8, 0);
             const completedHours = subTasks.filter(t => t.status === 'DONE').reduce((sum, t) => sum + t.duration * 8, 0);
             
             const completionPercent = totalHours > 0 ? Math.round((completedHours / totalHours) * 100) : 0;
@@ -592,8 +505,7 @@ function renderDashboard() {
         distContainer.innerHTML = distHtml;
     }
     
-    // 7. Recent Activities widget
-    const recentActivities = document.getElementById('recent-activities-list')!;
+    const recentActivities = document.getElementById('recent-activities-list');
     if (auditLogs.length === 0) {
         recentActivities.innerHTML = `<div class="empty-state">Belum ada aktivitas tercatat.</div>`;
     } else {
@@ -613,13 +525,12 @@ function renderDashboard() {
     }
 }
 
-// Render Gantt Timeline
 function renderGantt() {
-    const labelsContainer = document.getElementById('gantt-task-labels')!;
-    const timelineHeader = document.getElementById('gantt-timeline-header')!;
-    const gridBg = document.getElementById('gantt-grid-bg')!;
-    const barsWrap = document.getElementById('gantt-bars-wrap')!;
-    const svgOverlay = document.getElementById('gantt-svg-arrows') as any as SVGElement;
+    const labelsContainer = document.getElementById('gantt-task-labels');
+    const timelineHeader = document.getElementById('gantt-timeline-header');
+    const gridBg = document.getElementById('gantt-grid-bg');
+    const barsWrap = document.getElementById('gantt-bars-wrap');
+    const svgOverlay = document.getElementById('gantt-svg-arrows');
     
     if (tasks.length === 0) {
         labelsContainer.innerHTML = `<div class="empty-state" style="border:none">Tidak ada tugas.</div>`;
@@ -630,7 +541,6 @@ function renderGantt() {
         return;
     }
     
-    // Get minimum start date and maximum end date
     let minDateStr = tasks[0].startDate;
     let maxDateStr = tasks[0].endDate;
     
@@ -639,7 +549,6 @@ function renderGantt() {
         if (t.endDate > maxDateStr) maxDateStr = t.endDate;
     });
     
-    // Padding: 2 days before, 5 days after
     const projectStart = new Date(minDateStr);
     projectStart.setDate(projectStart.getDate() - 2);
     const timelineStartStr = projectStart.toISOString().split('T')[0];
@@ -651,8 +560,6 @@ function renderGantt() {
     const totalDays = getDaysBetween(timelineStartStr, timelineEndStr);
     const colWidth = activeGanttScale === 'days' ? 44 : 100;
     
-    // 1. Render Left Task Labels
-    // Sort tasks in chronological order (by scheduled start date)
     const sortedTasks = tasks.slice().sort((a, b) => a.startDate.localeCompare(b.startDate));
     
     let labelsHtml = '';
@@ -673,7 +580,6 @@ function renderGantt() {
     });
     labelsContainer.innerHTML = labelsHtml;
     
-    // 2. Render Timeline Header Dates
     let headerHtml = '';
     let gridBgHtml = '';
     
@@ -697,7 +603,6 @@ function renderGantt() {
             `;
         }
     } else {
-        // Render in Weeks
         const totalWeeks = Math.ceil(totalDays / 7);
         for (let w = 0; w < totalWeeks; w++) {
             const current = new Date(timelineStartStr);
@@ -721,32 +626,27 @@ function renderGantt() {
     timelineHeader.innerHTML = headerHtml;
     gridBg.innerHTML = gridBgHtml;
     
-    // Adjust container widths
     const contentWidth = totalDays * (activeGanttScale === 'days' ? 44 : (100 / 7));
-    document.getElementById('gantt-bars-container')!.style.width = `${contentWidth}px`;
-    document.getElementById('gantt-timeline-header')!.style.width = `${contentWidth}px`;
-    document.getElementById('gantt-grid-bg')!.style.width = `${contentWidth}px`;
+    document.getElementById('gantt-bars-container').style.width = `${contentWidth}px`;
+    document.getElementById('gantt-timeline-header').style.width = `${contentWidth}px`;
+    document.getElementById('gantt-grid-bg').style.width = `${contentWidth}px`;
     svgOverlay.style.width = `${contentWidth}px`;
     svgOverlay.style.height = `${sortedTasks.length * 54}px`;
     
-    // 3. Render HTML Bars
     let barsHtml = '';
     const barRowHeight = 54;
-    const taskBarYPositions = new Map<string, number>();
+    const taskBarYPositions = new Map();
     
     sortedTasks.forEach((t, index) => {
         const sub = subcontractors.find(s => s.id === t.subconId);
         const subColor = sub ? sub.color : '#3b82f6';
         
-        // Calculate offset position and width
         const daysFromStart = getDaysBetween(timelineStartStr, t.startDate);
         const barLeft = daysFromStart * (colWidth / (activeGanttScale === 'days' ? 1 : 7));
         const barWidth = t.duration * (colWidth / (activeGanttScale === 'days' ? 1 : 7));
         
-        // Save bar vertical center for SVG lines
-        taskBarYPositions.set(t.id, (index * barRowHeight) + 27); // 27 is midpoint of 54px row
+        taskBarYPositions.set(t.id, (index * barRowHeight) + 27);
         
-        // Calculate progress background width
         let progressWidthPercent = 0;
         if (t.status === 'DONE') progressWidthPercent = 100;
         else if (t.status === 'REVIEW') progressWidthPercent = 85;
@@ -755,7 +655,6 @@ function renderGantt() {
         const isBlocked = isTaskBlocked(t);
         const barClass = `${t.critical ? 'critical' : ''}`;
         
-        // Color modifiers
         let barColor = subColor;
         let opacity = '1';
         if (isBlocked) {
@@ -778,8 +677,6 @@ function renderGantt() {
     });
     barsWrap.innerHTML = barsHtml;
     
-    // 4. Render SVG Arrows for dependencies
-    // Setup arrow markers definition
     let svgHtml = `
         <defs>
             <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -802,18 +699,15 @@ function renderGantt() {
             const predIndex = sortedTasks.findIndex(x => x.id === predId);
             if (predIndex === -1) return;
             
-            // Start node details
             const predDaysFromStart = getDaysBetween(timelineStartStr, pred.startDate);
             const scaleFactor = colWidth / (activeGanttScale === 'days' ? 1 : 7);
             const xStart = (predDaysFromStart + pred.duration) * scaleFactor;
-            const yStart = taskBarYPositions.get(predId)!;
+            const yStart = taskBarYPositions.get(predId);
             
-            // End node details
             const tDaysFromStart = getDaysBetween(timelineStartStr, t.startDate);
             const xEnd = tDaysFromStart * scaleFactor;
-            const yEnd = taskBarYPositions.get(t.id)!;
+            const yEnd = taskBarYPositions.get(t.id);
             
-            // Check status for styling
             const isCriticalPath = t.critical && pred.critical;
             const isBlockedPath = isTaskBlocked(t) && pred.status !== 'DONE';
             
@@ -833,9 +727,7 @@ function renderGantt() {
                 strokeDash = '4,4';
             }
             
-            // Draw a nice S-Curve or orthogonal line
-            // Standard Bezier path
-            const controlPointX = 20; // horizontal separation bend
+            const controlPointX = 20;
             const dPath = `M ${xStart} ${yStart} 
                            C ${xStart + controlPointX} ${yStart}, 
                              ${xEnd - controlPointX} ${yEnd}, 
@@ -855,8 +747,7 @@ function renderGantt() {
     svgOverlay.innerHTML = svgHtml;
 }
 
-// Convert Hex color to RGB string for transparent fills
-function hexToRgb(hex: string): string {
+function hexToRgb(hex) {
     hex = hex.replace('#', '');
     if (hex.length === 3) {
         hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
@@ -867,13 +758,12 @@ function hexToRgb(hex: string): string {
     return `${r}, ${g}, ${b}`;
 }
 
-// Render Kanban columns
 function renderKanban() {
-    const cols = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE'] as TaskStatus[];
+    const cols = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE'];
     
     cols.forEach(status => {
-        const colContainer = document.getElementById(`kanban-${status.toLowerCase()}`)!;
-        const countBadge = document.getElementById(`count-${status.toLowerCase()}`)!;
+        const colContainer = document.getElementById(`kanban-${status.toLowerCase()}`);
+        const countBadge = document.getElementById(`count-${status.toLowerCase()}`);
         
         const colTasks = tasks.filter(t => t.status === status);
         countBadge.innerText = colTasks.length.toString();
@@ -882,7 +772,6 @@ function renderKanban() {
             colContainer.innerHTML = `<div class="empty-state" style="padding: 20px 0; border: 1px dashed rgba(255,255,255,0.02)">Kosong</div>`;
         } else {
             let colHtml = '';
-            // Sort by start date
             colTasks.sort((a,b) => a.startDate.localeCompare(b.startDate));
             
             colTasks.forEach(t => {
@@ -892,7 +781,6 @@ function renderKanban() {
                 
                 const isBlocked = isTaskBlocked(t);
                 
-                // Badges
                 let badgesHtml = '';
                 if (isBlocked) {
                     badgesHtml += `<span class="card-badge badge-blocked" title="Tugas pendahulu belum selesai">🔒 TERKUNCI</span>`;
@@ -930,9 +818,8 @@ function renderKanban() {
             });
             colContainer.innerHTML = colHtml;
             
-            // Attach drag events to cards
             colContainer.querySelectorAll('.kanban-card').forEach(card => {
-                card.addEventListener('dragstart', (e: any) => {
+                card.addEventListener('dragstart', (e) => {
                     dragSourceTaskId = card.getAttribute('data-task-id');
                     card.style.opacity = '0.5';
                     e.dataTransfer.setData('text/plain', dragSourceTaskId);
@@ -947,9 +834,8 @@ function renderKanban() {
     });
 }
 
-// Render Subcontractors Tab
 function renderSubcontractors() {
-    const listContainer = document.getElementById('subcon-card-list')!;
+    const listContainer = document.getElementById('subcon-card-list');
     if (subcontractors.length === 0) {
         listContainer.innerHTML = `<div class="empty-state" style="grid-column: 1/-1">Belum ada subkontraktor yang didaftarkan.</div>`;
         return;
@@ -996,9 +882,8 @@ function renderSubcontractors() {
     listContainer.innerHTML = subconHtml;
 }
 
-// Render Audit Logs Table
 function renderAuditLogs() {
-    const tbody = document.getElementById('logs-tbody')!;
+    const tbody = document.getElementById('logs-tbody');
     if (auditLogs.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="empty-state" style="text-align: center">Belum ada log audit dependensi keamanan.</td></tr>`;
         return;
@@ -1023,8 +908,7 @@ function renderAuditLogs() {
     }).join('');
 }
 
-// Inspect Task (Open Right Flyout)
-function inspectTask(taskId: string) {
+function inspectTask(taskId) {
     currentSelectedTaskId = taskId;
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
@@ -1033,12 +917,11 @@ function inspectTask(taskId: string) {
     const subconName = subcon ? subcon.name : 'Unknown';
     const subconColor = subcon ? subcon.color : '#3b82f6';
     
-    const panel = document.getElementById('flyout-inspector')!;
-    const content = document.getElementById('inspector-content')!;
+    const panel = document.getElementById('flyout-inspector');
+    const content = document.getElementById('inspector-content');
     
     const isBlocked = isTaskBlocked(task);
     
-    // Build predecessor list with statuses
     let predListHtml = '<div class="empty-state" style="padding:10px">Tidak ada tugas pendahulu</div>';
     if (task.predecessors.length > 0) {
         predListHtml = '<div class="flyout-pred-list">';
@@ -1062,7 +945,6 @@ function inspectTask(taskId: string) {
         predListHtml += '</div>';
     }
     
-    // Status text colors
     let statusColor = 'var(--accent-blue)';
     if (task.status === 'DONE') statusColor = 'var(--accent-emerald)';
     else if (task.status === 'IN_PROGRESS') statusColor = 'var(--accent-amber)';
@@ -1131,46 +1013,39 @@ function inspectTask(taskId: string) {
     panel.classList.remove('hidden');
 }
 
-// Close Inspector
 function closeInspector() {
-    const panel = document.getElementById('flyout-inspector')!;
+    const panel = document.getElementById('flyout-inspector');
     panel.classList.add('hidden');
     currentSelectedTaskId = null;
 }
 
-// Form Handlers & Modals
-
-// Open Task Modal
-function openTaskModal(editId: string | null = null) {
-    const modal = document.getElementById('modal-task')!;
-    const titleEl = document.getElementById('modal-task-title')!;
-    const form = document.getElementById('form-task') as HTMLFormElement;
+function openTaskModal(editId = null) {
+    const modal = document.getElementById('modal-task');
+    const titleEl = document.getElementById('modal-task-title');
+    const form = document.getElementById('form-task');
     
     form.reset();
     
-    // Populate subcon dropdown
-    const subconSelect = document.getElementById('task-subcon') as HTMLSelectElement;
+    const subconSelect = document.getElementById('task-subcon');
     subconSelect.innerHTML = subcontractors.map(s => `
         <option value="${s.id}">${s.name} (${s.specialty})</option>
     `).join('');
     
-    // Populate Predecessors list
-    const predContainer = document.getElementById('predecessors-checkbox-list')!;
+    const predContainer = document.getElementById('predecessors-checkbox-list');
     
     if (editId) {
         const task = tasks.find(t => t.id === editId);
         if (!task) return;
         
         titleEl.innerText = 'Edit Detail Tugas';
-        (document.getElementById('task-edit-id') as HTMLInputElement).value = task.id;
-        (document.getElementById('task-title') as HTMLInputElement).value = task.title;
-        (document.getElementById('task-subcon') as HTMLSelectElement).value = task.subconId;
-        (document.getElementById('task-priority') as HTMLSelectElement).value = task.priority;
-        (document.getElementById('task-start-date') as HTMLInputElement).value = task.startDate;
-        (document.getElementById('task-duration') as HTMLInputElement).value = task.duration.toString();
-        (document.getElementById('task-description') as HTMLTextAreaElement).value = task.description;
+        document.getElementById('task-edit-id').value = task.id;
+        document.getElementById('task-title').value = task.title;
+        document.getElementById('task-subcon').value = task.subconId;
+        document.getElementById('task-priority').value = task.priority;
+        document.getElementById('task-start-date').value = task.startDate;
+        document.getElementById('task-duration').value = task.duration.toString();
+        document.getElementById('task-description').value = task.description;
         
-        // Render predecessors checkbox (excluding current task to prevent immediate self-loop)
         predContainer.innerHTML = tasks
             .filter(t => t.id !== editId)
             .map(t => {
@@ -1188,9 +1063,8 @@ function openTaskModal(editId: string | null = null) {
         }
     } else {
         titleEl.innerText = 'Tambah Tugas Baru';
-        (document.getElementById('task-edit-id') as HTMLInputElement).value = '';
+        document.getElementById('task-edit-id').value = '';
         
-        // Predecessors for new task (any task can be predecessor)
         predContainer.innerHTML = tasks.map(t => `
             <label class="pred-check-label">
                 <input type="checkbox" name="pred-checkbox" value="${t.id}">
@@ -1202,34 +1076,30 @@ function openTaskModal(editId: string | null = null) {
             predContainer.innerHTML = `<div class="empty-state" style="padding:10px">Belum ada tugas lain untuk dijadikan dependensi.</div>`;
         }
         
-        // Auto default start date to today or project start
         let defaultStart = new Date().toISOString().split('T')[0];
         if (tasks.length > 0) {
-            // Default to earliest date in existing tasks
             defaultStart = tasks.slice().sort((a,b) => a.startDate.localeCompare(b.startDate))[0].startDate;
         }
-        (document.getElementById('task-start-date') as HTMLInputElement).value = defaultStart;
+        document.getElementById('task-start-date').value = defaultStart;
     }
     
     modal.classList.remove('hidden');
 }
 
 function closeTaskModal() {
-    document.getElementById('modal-task')!.classList.add('hidden');
+    document.getElementById('modal-task').classList.add('hidden');
 }
 
-// Open Subcon Modal
 function openSubconModal() {
-    const modal = document.getElementById('modal-subcon')!;
-    (document.getElementById('form-subcon') as HTMLFormElement).reset();
+    const modal = document.getElementById('modal-subcon');
+    document.getElementById('form-subcon').reset();
     modal.classList.remove('hidden');
 }
 
 function closeSubconModal() {
-    document.getElementById('modal-subcon')!.classList.add('hidden');
+    document.getElementById('modal-subcon').classList.add('hidden');
 }
 
-// Re-evaluate schedule, run CPM, and update views
 function updateAllViews() {
     evaluateScheduleCascades();
     solveCPM();
@@ -1246,27 +1116,24 @@ function updateAllViews() {
 
 // Page Setup & Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Initial Calculation
     solveCPM();
     renderBanners();
     renderDashboard();
     
-    // 2. Tab Navigation Click Events
     document.querySelectorAll('.nav-item').forEach(btn => {
         btn.addEventListener('click', () => {
-            const targetTab = btn.getAttribute('data-tab')!;
+            const targetTab = btn.getAttribute('data-tab');
             
             document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             
             document.querySelectorAll('.tab-content').forEach(tc => tc.classList.add('hidden'));
-            document.getElementById(`tab-${targetTab}`)!.classList.remove('hidden');
+            document.getElementById(`tab-${targetTab}`).classList.remove('hidden');
             
             activeTab = targetTab;
             
-            // Adjust title and description
-            const titleEl = document.getElementById('page-title')!;
-            const subEl = document.getElementById('page-subtitle')!;
+            const titleEl = document.getElementById('page-title');
+            const subEl = document.getElementById('page-subtitle');
             
             if (targetTab === 'dashboard') {
                 titleEl.innerText = 'Architect Dashboard';
@@ -1292,22 +1159,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // 3. Scale toggles in Gantt View
-    document.getElementById('btn-scale-days')?.addEventListener('click', (e) => {
+    document.getElementById('btn-scale-days')?.addEventListener('click', () => {
         document.getElementById('btn-scale-days')?.classList.add('active');
         document.getElementById('btn-scale-weeks')?.classList.remove('active');
         activeGanttScale = 'days';
         renderGantt();
     });
     
-    document.getElementById('btn-scale-weeks')?.addEventListener('click', (e) => {
+    document.getElementById('btn-scale-weeks')?.addEventListener('click', () => {
         document.getElementById('btn-scale-weeks')?.classList.add('active');
         document.getElementById('btn-scale-days')?.classList.remove('active');
         activeGanttScale = 'weeks';
         renderGantt();
     });
     
-    // 4. Modal Trigger Events
     document.getElementById('btn-add-task-trigger')?.addEventListener('click', () => openTaskModal(null));
     document.getElementById('btn-close-task-modal')?.addEventListener('click', closeTaskModal);
     document.getElementById('btn-cancel-task')?.addEventListener('click', closeTaskModal);
@@ -1317,12 +1182,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-cancel-subcon')?.addEventListener('click', closeSubconModal);
     
     document.getElementById('btn-close-banner')?.addEventListener('click', () => {
-        document.getElementById('dependency-warning-banner')!.classList.add('hidden');
+        document.getElementById('dependency-warning-banner').classList.add('hidden');
     });
     
     document.getElementById('btn-close-inspector')?.addEventListener('click', closeInspector);
     
-    // 5. Inspector actions
     document.getElementById('btn-inspect-edit')?.addEventListener('click', () => {
         if (currentSelectedTaskId) {
             const id = currentSelectedTaskId;
@@ -1336,10 +1200,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const idToDelete = currentSelectedTaskId;
             const task = tasks.find(t => t.id === idToDelete);
             
-            // Delete task
             tasks = tasks.filter(t => t.id !== idToDelete);
-            
-            // Remove from predecessors of other tasks
             tasks.forEach(t => {
                 t.predecessors = t.predecessors.filter(pId => pId !== idToDelete);
             });
@@ -1351,7 +1212,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // 6. Clear Logs event
     document.getElementById('btn-clear-logs')?.addEventListener('click', () => {
         if (confirm('Bersihkan seluruh catatan log audit?')) {
             auditLogs = [];
@@ -1360,33 +1220,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // 7. Form submissions
-    
-    // Save/Add Task
     document.getElementById('form-task')?.addEventListener('submit', (e) => {
         e.preventDefault();
         
-        const editId = (document.getElementById('task-edit-id') as HTMLInputElement).value;
-        const title = (document.getElementById('task-title') as HTMLInputElement).value.trim();
-        const subconId = (document.getElementById('task-subcon') as HTMLSelectElement).value;
-        const priority = (document.getElementById('task-priority') as HTMLSelectElement).value as TaskPriority;
-        const startDate = (document.getElementById('task-start-date') as HTMLInputElement).value;
-        const duration = parseInt((document.getElementById('task-duration') as HTMLInputElement).value, 10);
-        const description = (document.getElementById('task-description') as HTMLTextAreaElement).value.trim();
+        const editId = document.getElementById('task-edit-id').value;
+        const title = document.getElementById('task-title').value.trim();
+        const subconId = document.getElementById('task-subcon').value;
+        const priority = document.getElementById('task-priority').value;
+        const startDate = document.getElementById('task-start-date').value;
+        const duration = parseInt(document.getElementById('task-duration').value, 10);
+        const description = document.getElementById('task-description').value.trim();
         
-        // Calculate inclusive end date
         const endDate = addDays(startDate, duration - 1);
         
-        // Gather selected predecessors
-        const predCheckboxes = document.getElementsByName('pred-checkbox') as NodeListOf<HTMLInputElement>;
-        const selectedPreds: string[] = [];
+        const predCheckboxes = document.getElementsByName('pred-checkbox');
+        const selectedPreds = [];
         predCheckboxes.forEach(cb => {
             if (cb.checked) selectedPreds.push(cb.value);
         });
         
-        // Cycle checking!
         if (editId) {
-            // Check if any checked predecessor would cause a cycle
             for (const pId of selectedPreds) {
                 if (checkCycle(editId, pId)) {
                     showToast(`Gagal menyimpan: Terdeteksi loop dependensi melingkar! (Cycle detected with task "${tasks.find(x=>x.id===pId)?.title}")`, 'error');
@@ -1395,15 +1248,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             
-            // Edit existing
             const taskIdx = tasks.findIndex(t => t.id === editId);
             if (taskIdx > -1) {
                 const prev = tasks[taskIdx];
-                
-                // If it is currently locked (has unfinished predecessors) and trying to change status to DONE
-                if (prev.status !== 'DONE' && prev.status !== 'TODO' && selectedPreds.some(pId => tasks.find(x=>x.id===pId)?.status !== 'DONE')) {
-                    // Predecessors are not done! If they tried to force mark it done, warning
-                }
                 
                 tasks[taskIdx] = {
                     ...prev,
@@ -1421,11 +1268,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 showToast('Tugas berhasil diperbarui!', 'success');
             }
         } else {
-            // New Task
             const newTaskId = 'task-' + Date.now();
             
-            // Check cycles for new task (though unlikely as it's new, but good for validation)
-            const tempTask: Task = {
+            const tempTask = {
                 id: newTaskId,
                 title,
                 description,
@@ -1447,16 +1292,15 @@ document.addEventListener('DOMContentLoaded', () => {
         updateAllViews();
     });
     
-    // Save Subcontractor
     document.getElementById('form-subcon')?.addEventListener('submit', (e) => {
         e.preventDefault();
         
-        const name = (document.getElementById('subcon-name') as HTMLInputElement).value.trim();
-        const specialty = (document.getElementById('subcon-specialty') as HTMLInputElement).value.trim();
-        const phone = (document.getElementById('subcon-phone') as HTMLInputElement).value.trim();
-        const color = (document.getElementById('subcon-color') as HTMLInputElement).value;
+        const name = document.getElementById('subcon-name').value.trim();
+        const specialty = document.getElementById('subcon-specialty').value.trim();
+        const phone = document.getElementById('subcon-phone').value.trim();
+        const color = document.getElementById('subcon-color').value;
         
-        const newSub: Subcontractor = {
+        const newSub = {
             id: 'sub-' + Date.now(),
             name,
             specialty,
@@ -1472,10 +1316,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateAllViews();
     });
     
-    // 8. Kanban Drag and Drop Event listeners
     const kanbanColumns = document.querySelectorAll('.kanban-column');
     kanbanColumns.forEach(column => {
-        column.addEventListener('dragover', (e: any) => {
+        column.addEventListener('dragover', (e) => {
             e.preventDefault();
             column.classList.add('drag-over');
         });
@@ -1484,24 +1327,22 @@ document.addEventListener('DOMContentLoaded', () => {
             column.classList.remove('drag-over');
         });
         
-        column.addEventListener('drop', (e: any) => {
+        column.addEventListener('drop', (e) => {
             e.preventDefault();
             column.classList.remove('drag-over');
             
             const taskId = e.dataTransfer.getData('text/plain');
-            const targetStatus = column.getAttribute('data-status') as TaskStatus;
+            const targetStatus = column.getAttribute('data-status');
             
             if (!taskId || !targetStatus) return;
             
             const task = tasks.find(t => t.id === taskId);
             if (!task) return;
             
-            if (task.status === targetStatus) return; // No change
+            if (task.status === targetStatus) return;
             
-            // STRICT DEPENDENCY ENFORCEMENT
-            // If target status is not TODO, verify all predecessors are DONE
             if (targetStatus !== 'TODO') {
-                const unfinishedPreds: Task[] = [];
+                const unfinishedPreds = [];
                 task.predecessors.forEach(pId => {
                     const pred = tasks.find(x => x.id === pId);
                     if (pred && pred.status !== 'DONE') {
@@ -1517,7 +1358,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             
-            // If successful transition
             const oldStatus = task.status;
             task.status = targetStatus;
             
@@ -1528,8 +1368,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // 9. Initial setup run
-    // Add first logs if empty
     if (auditLogs.length === 0) {
         logEvent('security', 'System Initiator', 'Sistem pelacakan ConstructIQ berhasil dimulai.');
         logEvent('validation', 'System Scheduler', 'Model CPM dijalankan. Jalur kritis berhasil dihitung.');
