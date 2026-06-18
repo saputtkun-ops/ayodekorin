@@ -1,0 +1,1539 @@
+/**
+ * ConstructIQ - Multi-Subcon Dependency & Job Tracker Logic
+ * Bertindak sebagai Full-Stack Software Architect
+ */
+
+// Interface Definitions
+interface Subcontractor {
+    id: string;
+    name: string;
+    specialty: string;
+    phone: string;
+    color: string;
+}
+
+type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
+type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+type LogType = 'validation' | 'security' | 'dependency';
+
+interface Task {
+    id: string;
+    title: string;
+    description: string;
+    subconId: string;
+    status: TaskStatus;
+    priority: TaskPriority;
+    startDate: string; // YYYY-MM-DD
+    duration: number; // in days
+    endDate: string; // YYYY-MM-DD
+    predecessors: string[]; // Task IDs
+    
+    // CPM calculated fields (relative to project start day 0)
+    es?: number; // Early Start
+    ef?: number; // Early Finish
+    ls?: number; // Late Start
+    lf?: number; // Late Finish
+    slack?: number; // Float slack
+    critical?: boolean;
+}
+
+interface AuditLog {
+    id: string;
+    timestamp: string;
+    type: LogType;
+    actor: string;
+    description: string;
+    status: 'OK' | 'BLOCKED';
+}
+
+// Initial Data Configurations
+const defaultSubcontractors: Subcontractor[] = [
+    { id: 'sub-1', name: 'PT Sipil Kokoh', specialty: 'Sipil & Pekerjaan Struktur', phone: '08112233445', color: '#f43f5e' },
+    { id: 'sub-2', name: 'CV Terang Abadi', specialty: 'Instalasi Listrik & ME', phone: '08123456789', color: '#f59e0b' },
+    { id: 'sub-3', name: 'Mahakarya Kayu', specialty: 'Desain Interior & Kayu Custom', phone: '08134567890', color: '#10b981' },
+    { id: 'sub-4', name: 'Sentosa Paint', specialty: 'Finishing & Pengecatan Cat Premium', phone: '08145678901', color: '#8b5cf6' },
+    { id: 'sub-5', name: 'Glass & Metal Indo', specialty: 'Konstruksi Aluminium & Kaca', phone: '08156789012', color: '#06b6d4' }
+];
+
+const defaultTasks: Task[] = [
+    {
+        id: 'task-1',
+        title: 'Pembongkaran Dinding & Pembersihan Area',
+        description: 'Membersihkan partisi lama, membongkar sekat non-struktural, dan membuang puing agar area kerja steril.',
+        subconId: 'sub-1',
+        status: 'DONE',
+        priority: 'HIGH',
+        startDate: '2026-06-19',
+        duration: 3,
+        endDate: '2026-06-21',
+        predecessors: []
+    },
+    {
+        id: 'task-2',
+        title: 'Instalasi Jalur Kabel & ME Utama',
+        description: 'Penarikan kabel induk, pemasangan pipa konduit dalam dinding untuk kelistrikan AC dan pencahayaan utama.',
+        subconId: 'sub-2',
+        status: 'DONE',
+        priority: 'HIGH',
+        startDate: '2026-06-22',
+        duration: 4,
+        endDate: '2026-06-25',
+        predecessors: ['task-1']
+    },
+    {
+        id: 'task-3',
+        title: 'Pemasangan Rangka Plafon Hollow',
+        description: 'Pemasangan besi hollow galvanis 4x4 untuk rangka plafon drop ceiling sesuai detail arsitektur.',
+        subconId: 'sub-1',
+        status: 'IN_PROGRESS',
+        priority: 'MEDIUM',
+        startDate: '2026-06-26',
+        duration: 3,
+        endDate: '2026-06-28',
+        predecessors: ['task-2']
+    },
+    {
+        id: 'task-4',
+        title: 'Pemasangan Partisi Gypsum Dinding',
+        description: 'Menutup partisi dinding dua sisi dengan rangka stud metal dan papan gypsum Jayaboard tebal 9mm.',
+        subconId: 'sub-1',
+        status: 'TODO',
+        priority: 'MEDIUM',
+        startDate: '2026-06-26',
+        duration: 4,
+        endDate: '2026-06-29',
+        predecessors: ['task-2']
+    },
+    {
+        id: 'task-5',
+        title: 'Instalasi Saklar & Lampu Plafon',
+        description: 'Pemasangan armature lampu downlight LED, saklar Schneider, serta pengujian koneksi sirkuit panel.',
+        subconId: 'sub-2',
+        status: 'TODO',
+        priority: 'LOW',
+        startDate: '2026-06-29',
+        duration: 2,
+        endDate: '2026-06-30',
+        predecessors: ['task-3']
+    },
+    {
+        id: 'task-6',
+        title: 'Pemasangan Lemari Custom & Kitchen Set',
+        description: 'Instalasi kabinet dapur kayu solid HPL premium, fitting engsel slow-motion Blum, dan pemasangan top table marmer.',
+        subconId: 'sub-3',
+        status: 'TODO',
+        priority: 'HIGH',
+        startDate: '2026-07-01',
+        duration: 5,
+        endDate: '2026-07-05',
+        predecessors: ['task-4', 'task-5']
+    },
+    {
+        id: 'task-7',
+        title: 'Finishing Cat Dinding & Plafon',
+        description: 'Pekerjaan plamir dinding, sanding, dan cat akhir interior dengan cat Dulux Ambiance 3 lapis untuk warna matte.',
+        subconId: 'sub-4',
+        status: 'TODO',
+        priority: 'MEDIUM',
+        startDate: '2026-07-06',
+        duration: 4,
+        endDate: '2026-07-09',
+        predecessors: ['task-6']
+    },
+    {
+        id: 'task-8',
+        title: 'Pemasangan Cermin Hias & Kaca Partisi',
+        description: 'Pemasangan cermin bronze dekoratif bevel di ruang tamu dan kaca tempered 10mm untuk pembatas shower kamar mandi.',
+        subconId: 'sub-5',
+        status: 'TODO',
+        priority: 'LOW',
+        startDate: '2026-07-10',
+        duration: 2,
+        endDate: '2026-07-11',
+        predecessors: ['task-7']
+    },
+    {
+        id: 'task-9',
+        title: 'Serah Terima Area & QC Akhir',
+        description: 'Pemeriksaan komprehensif seluruh titik kerja bersama project manager, perbaikan minor, dan pembersihan final.',
+        subconId: 'sub-1',
+        status: 'TODO',
+        priority: 'HIGH',
+        startDate: '2026-07-12',
+        duration: 1,
+        endDate: '2026-07-12',
+        predecessors: ['task-8']
+    }
+];
+
+// State variables
+let subcontractors: Subcontractor[] = JSON.parse(localStorage.getItem('c_subcons') || 'null') || defaultSubcontractors;
+let tasks: Task[] = JSON.parse(localStorage.getItem('c_tasks') || 'null') || defaultTasks;
+let auditLogs: AuditLog[] = JSON.parse(localStorage.getItem('c_logs') || 'null') || [];
+let activeTab = 'dashboard';
+let activeGanttScale: 'days' | 'weeks' = 'days';
+let dragSourceTaskId: string | null = null;
+let currentSelectedTaskId: string | null = null;
+
+// Date helpers
+function addDays(dateStr: string, days: number): string {
+    const date = new Date(dateStr);
+    date.setDate(date.getDate() + days);
+    return date.toISOString().split('T')[0];
+}
+
+function getDaysBetween(startStr: string, endStr: string): number {
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    const diffTime = end.getTime() - start.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
+// Log utility
+function logEvent(type: LogType, actor: string, description: string, status: 'OK' | 'BLOCKED' = 'OK') {
+    const newLog: AuditLog = {
+        id: 'log-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+        timestamp: new Date().toLocaleTimeString('id-ID', { hour12: false }) + ' ' + new Date().toLocaleDateString('id-ID'),
+        type,
+        actor,
+        description,
+        status
+    };
+    auditLogs.unshift(newLog);
+    if (auditLogs.length > 150) auditLogs.pop();
+    saveToStorage();
+}
+
+// Storage utility
+function saveToStorage() {
+    localStorage.setItem('c_subcons', JSON.stringify(subcontractors));
+    localStorage.setItem('c_tasks', JSON.stringify(tasks));
+    localStorage.setItem('c_logs', JSON.stringify(auditLogs));
+}
+
+// Core Algorithms
+
+/**
+ * 1. Cycle Detection (DAG validation)
+ * Checks if adding predecessorId to taskId forms a cycle.
+ */
+function checkCycle(taskId: string, predecessorId: string): boolean {
+    if (taskId === predecessorId) return true;
+    
+    // Build adjacency list for predecessors
+    const adj = new Map<string, string[]>();
+    tasks.forEach(t => {
+        adj.set(t.id, [...t.predecessors]);
+    });
+    
+    // Temporarily inject the new connection
+    const currentPreds = adj.get(taskId) || [];
+    if (!currentPreds.includes(predecessorId)) {
+        adj.set(taskId, [...currentPreds, predecessorId]);
+    }
+    
+    // Standard DFS to detect cycle
+    const visited = new Set<string>();
+    const recStack = new Set<string>();
+    
+    function dfs(node: string): boolean {
+        if (recStack.has(node)) return true;
+        if (visited.has(node)) return false;
+        
+        visited.add(node);
+        recStack.add(node);
+        
+        const neighbors = adj.get(node) || [];
+        for (const neighbor of neighbors) {
+            if (dfs(neighbor)) return true;
+        }
+        
+        recStack.delete(node);
+        return false;
+    }
+    
+    // Check all tasks
+    for (const t of tasks) {
+        if (dfs(t.id)) return true;
+    }
+    
+    return false;
+}
+
+/**
+ * 2. CPM Solver (Critical Path Method)
+ */
+function solveCPM() {
+    if (tasks.length === 0) return;
+
+    // Reset CPM values
+    tasks.forEach(t => {
+        t.es = 0; t.ef = 0; t.ls = 0; t.lf = 0; t.slack = 0; t.critical = false;
+    });
+
+    // 1. Calculate relative offsets in days
+    // Find absolute start date (earliest start date among all tasks with no predecessors)
+    let minDateStr = tasks[0].startDate;
+    tasks.forEach(t => {
+        if (t.startDate < minDateStr) minDateStr = t.startDate;
+    });
+    
+    const projectBaseDate = new Date(minDateStr);
+    
+    function getOffset(dateStr: string): number {
+        return getDaysBetween(minDateStr, dateStr);
+    }
+    
+    // 2. Topological Sort (Kahn's Algorithm)
+    const inDegree = new Map<string, number>();
+    const adj = new Map<string, string[]>(); // u -> v (u blocks v, meaning u is pred of v)
+    
+    tasks.forEach(t => {
+        inDegree.set(t.id, 0);
+        adj.set(t.id, []);
+    });
+    
+    tasks.forEach(t => {
+        t.predecessors.forEach(pId => {
+            const list = adj.get(pId) || [];
+            list.push(t.id);
+            adj.set(pId, list);
+            inDegree.set(t.id, (inDegree.get(t.id) || 0) + 1);
+        });
+    });
+    
+    const queue: string[] = [];
+    inDegree.forEach((deg, id) => {
+        if (deg === 0) queue.push(id);
+    });
+    
+    const topoOrder: string[] = [];
+    while (queue.length > 0) {
+        const u = queue.shift()!;
+        topoOrder.push(u);
+        const neighbors = adj.get(u) || [];
+        neighbors.forEach(v => {
+            inDegree.set(v, inDegree.get(v)! - 1);
+            if (inDegree.get(v) === 0) queue.push(v);
+        });
+    }
+
+    // Graph must be DAG
+    if (topoOrder.length !== tasks.length) {
+        console.error("Dependency cycle detected during CPM calculation.");
+        return;
+    }
+
+    // 3. Forward Pass (Calculate ES and EF)
+    const tasksMap = new Map<string, Task>();
+    tasks.forEach(t => tasksMap.set(t.id, t));
+
+    topoOrder.forEach(id => {
+        const t = tasksMap.get(id)!;
+        let maxEF = 0;
+        
+        t.predecessors.forEach(pId => {
+            const pred = tasksMap.get(pId)!;
+            if (pred.ef! > maxEF) {
+                maxEF = pred.ef!;
+            }
+        });
+        
+        // ES is either max of predecessors' EF, or the task's own scheduled start offset
+        const scheduledOffset = getOffset(t.startDate);
+        t.es = Math.max(maxEF, scheduledOffset);
+        t.ef = t.es + t.duration;
+    });
+
+    // Project duration (T) is max EF
+    let projectDuration = 0;
+    tasks.forEach(t => {
+        if (t.ef! > projectDuration) projectDuration = t.ef!;
+    });
+
+    // 4. Backward Pass (Calculate LS and LF)
+    // Initialize LF of final nodes to project duration
+    topoOrder.slice().reverse().forEach(id => {
+        const t = tasksMap.get(id)!;
+        
+        // Find successors
+        const successors: Task[] = [];
+        tasks.forEach(other => {
+            if (other.predecessors.includes(id)) successors.push(other);
+        });
+        
+        if (successors.length === 0) {
+            t.lf = projectDuration;
+        } else {
+            let minLS = projectDuration;
+            successors.forEach(s => {
+                if (s.ls! < minLS) minLS = s.ls!;
+            });
+            t.lf = minLS;
+        }
+        
+        t.ls = t.lf! - t.duration;
+        t.slack = t.ls - t.es!;
+        t.critical = Math.abs(t.slack) < 0.001; // Slack is 0
+    });
+}
+
+/**
+ * 3. Evaluate Date Cascades and Strict Predecessor Rules
+ * Updates tasks' actual dates based on strict predecessor end dates
+ */
+function evaluateScheduleCascades(): boolean {
+    let changed = false;
+    let iterations = 0;
+    const maxIterations = 100;
+    
+    // Run iterative adjustment until stable (relaxation method)
+    do {
+        changed = false;
+        for (let i = 0; i < tasks.length; i++) {
+            const t = tasks[i];
+            let requiredMinStart = t.startDate;
+            
+            // Check predecessor end dates
+            for (const pId of t.predecessors) {
+                const pred = tasks.find(x => x.id === pId);
+                if (pred) {
+                    // Predecessor must end before successor starts.
+                    // If predecessor ends at D, successor can start at D+1.
+                    // Wait, let's treat duration as inclusive:
+                    // Task starts 19 Jun, duration 3 days: work days are 19, 20, 21. Next starts 22 Jun.
+                    const predEnd = pred.endDate;
+                    const nextDay = addDays(predEnd, 1);
+                    if (nextDay > requiredMinStart) {
+                        requiredMinStart = nextDay;
+                    }
+                }
+            }
+            
+            if (requiredMinStart !== t.startDate) {
+                const prevStart = t.startDate;
+                t.startDate = requiredMinStart;
+                t.endDate = addDays(t.startDate, t.duration - 1);
+                changed = true;
+                logEvent('dependency', 'System Scheduler', `Auto-shift jadwal tugas "${t.title}": tanggal mulai digeser dari ${prevStart} ke ${t.startDate} untuk memenuhi dependensi.`);
+            }
+        }
+        iterations++;
+    } while (changed && iterations < maxIterations);
+    
+    return iterations > 1;
+}
+
+/**
+ * Checks if there are any date inconsistencies (e.g. successors starting before predecessors finish)
+ */
+function detectScheduleConflicts(): string[] {
+    const conflicts: string[] = [];
+    tasks.forEach(t => {
+        t.predecessors.forEach(pId => {
+            const pred = tasks.find(x => x.id === pId);
+            if (pred) {
+                const predEnd = new Date(pred.endDate);
+                const succStart = new Date(t.startDate);
+                if (succStart <= predEnd) {
+                    conflicts.push(`Tugas "${t.title}" dijadwalkan mulai (${t.startDate}) sebelum pendahulunya "${pred.title}" selesai (${pred.endDate}).`);
+                }
+            }
+        });
+    });
+    return conflicts;
+}
+
+/**
+ * Check if a task is locked/blocked
+ * A task is blocked if it is not completed AND at least one predecessor is NOT completed (DONE)
+ */
+function isTaskBlocked(task: Task): boolean {
+    if (task.status === 'DONE') return false;
+    for (const pId of task.predecessors) {
+        const pred = tasks.find(x => x.id === pId);
+        if (pred && pred.status !== 'DONE') {
+            return true;
+        }
+    }
+    return false;
+}
+
+// UI Rendering Logic
+
+// Display Banner Alert
+function renderBanners() {
+    const banner = document.getElementById('dependency-warning-banner')!;
+    const warningText = document.getElementById('dependency-warning-text')!;
+    const conflicts = detectScheduleConflicts();
+    
+    if (conflicts.length > 0) {
+        warningText.innerHTML = conflicts.map(c => `<li>${c}</li>`).join('');
+        banner.classList.remove('hidden');
+    } else {
+        banner.classList.add('hidden');
+    }
+}
+
+// Show Toast
+function showToast(message: string, type: 'success' | 'error' | 'info' = 'info') {
+    const container = document.getElementById('toast-container')!;
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    let iconSvg = '';
+    if (type === 'success') {
+        iconSvg = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+    } else if (type === 'error') {
+        iconSvg = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`;
+    } else {
+        iconSvg = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+    }
+    
+    toast.innerHTML = `
+        <div class="toast-icon">${iconSvg}</div>
+        <div class="toast-content">${message}</div>
+    `;
+    
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(40px)';
+        toast.style.transition = 'all 0.35s ease';
+        setTimeout(() => toast.remove(), 350);
+    }, 4000);
+}
+
+// Render Dashboard KPI Cards and Charts
+function renderDashboard() {
+    // 1. Calculate overall progress
+    const completedTasks = tasks.filter(t => t.status === 'DONE');
+    const progressPercent = tasks.length > 0 ? Math.round((completedTasks.length / tasks.length) * 100) : 0;
+    
+    document.getElementById('stat-project-progress')!.innerText = `${progressPercent}%`;
+    const circle = document.getElementById('progress-circle') as SVGCircleElement | null;
+    if (circle) {
+        // Circumference is 2 * PI * r = 2 * 3.14159 * 24 = 150.79
+        const offset = 150.79 - (progressPercent / 100) * 150.79;
+        circle.style.strokeDashoffset = offset.toString();
+    }
+    
+    // 2. Blocked tasks
+    const blockedCount = tasks.filter(t => isTaskBlocked(t)).length;
+    document.getElementById('stat-blocked-tasks')!.innerText = blockedCount.toString();
+    
+    // 3. Critical Path
+    const criticalTasks = tasks.filter(t => t.critical);
+    document.getElementById('stat-critical-path-count')!.innerText = `${criticalTasks.length} Tugas`;
+    
+    // 4. Active Subcons
+    const uniqueSubconIds = new Set(tasks.map(t => t.subconId));
+    document.getElementById('stat-active-subcons')!.innerText = uniqueSubconIds.size.toString();
+    
+    // 5. Critical Path Visual Chain
+    const cpmContainer = document.getElementById('cpm-flow-list')!;
+    if (criticalTasks.length === 0) {
+        cpmContainer.innerHTML = `<div class="empty-state">Tidak ada jalur kritis yang terhitung.</div>`;
+    } else {
+        // Sort critical tasks by their ES (early start offset)
+        const sortedCritical = criticalTasks.slice().sort((a, b) => (a.es || 0) - (b.es || 0));
+        
+        let cpmHtml = '';
+        sortedCritical.forEach((t, index) => {
+            const subcon = subcontractors.find(s => s.id === t.subconId);
+            const subconName = subcon ? subcon.name : 'Unknown';
+            cpmHtml += `
+                <div class="cpm-node" onclick="inspectTask('${t.id}')">
+                    <span class="cpm-node-title">${t.title}</span>
+                    <span class="cpm-node-subcon">${subconName}</span>
+                    <span class="cpm-node-dates">${t.startDate} s/d ${t.endDate}</span>
+                </div>
+            `;
+            if (index < sortedCritical.length - 1) {
+                cpmHtml += `
+                    <div class="cpm-arrow">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </div>
+                `;
+            }
+        });
+        cpmContainer.innerHTML = cpmHtml;
+    }
+    
+    // 6. Subcontractor Workload distribution bars
+    const distContainer = document.getElementById('subcon-distribution-list')!;
+    if (subcontractors.length === 0) {
+        distContainer.innerHTML = `<div class="empty-state">Belum ada subkontraktor terdaftar.</div>`;
+    } else {
+        let distHtml = '';
+        subcontractors.forEach(sub => {
+            const subTasks = tasks.filter(t => t.subconId === sub.id);
+            const totalHours = subTasks.reduce((sum, t) => sum + t.duration * 8, 0); // 8 working hours per day
+            const completedHours = subTasks.filter(t => t.status === 'DONE').reduce((sum, t) => sum + t.duration * 8, 0);
+            
+            const completionPercent = totalHours > 0 ? Math.round((completedHours / totalHours) * 100) : 0;
+            const taskCount = subTasks.length;
+            
+            distHtml += `
+                <div class="subcon-bar-item">
+                    <div class="subcon-bar-lbl">
+                        <span class="subcon-bar-name" style="color: ${sub.color}">${sub.name} (${sub.specialty})</span>
+                        <span class="subcon-bar-count">${taskCount} Tugas (${completionPercent}% Selesai)</span>
+                    </div>
+                    <div class="subcon-bar-track">
+                        <div class="subcon-bar-fill" style="width: ${completionPercent}%; background-color: ${sub.color}"></div>
+                    </div>
+                </div>
+            `;
+        });
+        distContainer.innerHTML = distHtml;
+    }
+    
+    // 7. Recent Activities widget
+    const recentActivities = document.getElementById('recent-activities-list')!;
+    if (auditLogs.length === 0) {
+        recentActivities.innerHTML = `<div class="empty-state">Belum ada aktivitas tercatat.</div>`;
+    } else {
+        recentActivities.innerHTML = auditLogs.slice(0, 5).map(log => {
+            let className = '';
+            if (log.status === 'BLOCKED') className = 'error';
+            else if (log.type === 'validation') className = 'success';
+            else if (log.type === 'dependency') className = 'warning';
+            
+            return `
+                <div class="activity-item ${className}">
+                    <span class="activity-time">[${log.timestamp.split(' ')[0]}] ${log.actor}</span>
+                    <p class="activity-text">${log.description}</p>
+                </div>
+            `;
+        }).join('');
+    }
+}
+
+// Render Gantt Timeline
+function renderGantt() {
+    const labelsContainer = document.getElementById('gantt-task-labels')!;
+    const timelineHeader = document.getElementById('gantt-timeline-header')!;
+    const gridBg = document.getElementById('gantt-grid-bg')!;
+    const barsWrap = document.getElementById('gantt-bars-wrap')!;
+    const svgOverlay = document.getElementById('gantt-svg-arrows') as any as SVGElement;
+    
+    if (tasks.length === 0) {
+        labelsContainer.innerHTML = `<div class="empty-state" style="border:none">Tidak ada tugas.</div>`;
+        barsWrap.innerHTML = '';
+        timelineHeader.innerHTML = '';
+        gridBg.innerHTML = '';
+        svgOverlay.innerHTML = '';
+        return;
+    }
+    
+    // Get minimum start date and maximum end date
+    let minDateStr = tasks[0].startDate;
+    let maxDateStr = tasks[0].endDate;
+    
+    tasks.forEach(t => {
+        if (t.startDate < minDateStr) minDateStr = t.startDate;
+        if (t.endDate > maxDateStr) maxDateStr = t.endDate;
+    });
+    
+    // Padding: 2 days before, 5 days after
+    const projectStart = new Date(minDateStr);
+    projectStart.setDate(projectStart.getDate() - 2);
+    const timelineStartStr = projectStart.toISOString().split('T')[0];
+    
+    const projectEnd = new Date(maxDateStr);
+    projectEnd.setDate(projectEnd.getDate() + 5);
+    const timelineEndStr = projectEnd.toISOString().split('T')[0];
+    
+    const totalDays = getDaysBetween(timelineStartStr, timelineEndStr);
+    const colWidth = activeGanttScale === 'days' ? 44 : 100;
+    
+    // 1. Render Left Task Labels
+    // Sort tasks in chronological order (by scheduled start date)
+    const sortedTasks = tasks.slice().sort((a, b) => a.startDate.localeCompare(b.startDate));
+    
+    let labelsHtml = '';
+    sortedTasks.forEach(t => {
+        const sub = subcontractors.find(s => s.id === t.subconId);
+        const subName = sub ? sub.name : 'Unknown';
+        const subColor = sub ? sub.color : '#3b82f6';
+        
+        labelsHtml += `
+            <div class="gantt-label-row" onclick="inspectTask('${t.id}')">
+                <span class="gantt-label-title" title="${t.title}">${t.title}</span>
+                <span class="gantt-label-subcon">
+                    <span class="subcon-indicator-dot" style="background-color: ${subColor}"></span>
+                    ${subName}
+                </span>
+            </div>
+        `;
+    });
+    labelsContainer.innerHTML = labelsHtml;
+    
+    // 2. Render Timeline Header Dates
+    let headerHtml = '';
+    let gridBgHtml = '';
+    
+    if (activeGanttScale === 'days') {
+        for (let i = 0; i < totalDays; i++) {
+            const current = new Date(timelineStartStr);
+            current.setDate(current.getDate() + i);
+            const dateStr = current.getDate();
+            const monthStr = current.toLocaleDateString('id-ID', { month: 'short' });
+            const isWeekend = current.getDay() === 0 || current.getDay() === 6;
+            
+            headerHtml += `
+                <div class="gantt-timeline-col" style="width: ${colWidth}px; ${isWeekend ? 'background-color: rgba(255,255,255,0.02)' : ''}">
+                    <span style="font-weight: 700">${dateStr}</span>
+                    <span>${monthStr}</span>
+                </div>
+            `;
+            
+            gridBgHtml += `
+                <div class="gantt-grid-col" style="width: ${colWidth}px; ${isWeekend ? 'background-color: rgba(255,255,255,0.02)' : ''}"></div>
+            `;
+        }
+    } else {
+        // Render in Weeks
+        const totalWeeks = Math.ceil(totalDays / 7);
+        for (let w = 0; w < totalWeeks; w++) {
+            const current = new Date(timelineStartStr);
+            current.setDate(current.getDate() + (w * 7));
+            const dateStr = current.getDate();
+            const monthStr = current.toLocaleDateString('id-ID', { month: 'short' });
+            
+            headerHtml += `
+                <div class="gantt-timeline-col" style="width: ${colWidth}px">
+                    <span style="font-weight: 700">W${w + 1}</span>
+                    <span>${dateStr} ${monthStr}</span>
+                </div>
+            `;
+            
+            gridBgHtml += `
+                <div class="gantt-grid-col" style="width: ${colWidth}px"></div>
+            `;
+        }
+    }
+    
+    timelineHeader.innerHTML = headerHtml;
+    gridBg.innerHTML = gridBgHtml;
+    
+    // Adjust container widths
+    const contentWidth = totalDays * (activeGanttScale === 'days' ? 44 : (100 / 7));
+    document.getElementById('gantt-bars-container')!.style.width = `${contentWidth}px`;
+    document.getElementById('gantt-timeline-header')!.style.width = `${contentWidth}px`;
+    document.getElementById('gantt-grid-bg')!.style.width = `${contentWidth}px`;
+    svgOverlay.style.width = `${contentWidth}px`;
+    svgOverlay.style.height = `${sortedTasks.length * 54}px`;
+    
+    // 3. Render HTML Bars
+    let barsHtml = '';
+    const barRowHeight = 54;
+    const taskBarYPositions = new Map<string, number>();
+    
+    sortedTasks.forEach((t, index) => {
+        const sub = subcontractors.find(s => s.id === t.subconId);
+        const subColor = sub ? sub.color : '#3b82f6';
+        
+        // Calculate offset position and width
+        const daysFromStart = getDaysBetween(timelineStartStr, t.startDate);
+        const barLeft = daysFromStart * (colWidth / (activeGanttScale === 'days' ? 1 : 7));
+        const barWidth = t.duration * (colWidth / (activeGanttScale === 'days' ? 1 : 7));
+        
+        // Save bar vertical center for SVG lines
+        taskBarYPositions.set(t.id, (index * barRowHeight) + 27); // 27 is midpoint of 54px row
+        
+        // Calculate progress background width
+        let progressWidthPercent = 0;
+        if (t.status === 'DONE') progressWidthPercent = 100;
+        else if (t.status === 'REVIEW') progressWidthPercent = 85;
+        else if (t.status === 'IN_PROGRESS') progressWidthPercent = 40;
+        
+        const isBlocked = isTaskBlocked(t);
+        const barClass = `${t.critical ? 'critical' : ''}`;
+        
+        // Color modifiers
+        let barColor = subColor;
+        let opacity = '1';
+        if (isBlocked) {
+            barColor = 'var(--accent-ruby)';
+            opacity = '0.75';
+        }
+        
+        barsHtml += `
+            <div class="gantt-bar-row">
+                <div class="gantt-task-bar ${barClass}" 
+                     style="left: ${barLeft}px; width: ${barWidth}px; background-color: rgba(${hexToRgb(barColor)}, 0.25); border-color: ${barColor}; opacity: ${opacity};"
+                     onclick="inspectTask('${t.id}')">
+                    <div class="gantt-bar-progress" style="width: ${progressWidthPercent}%; background-color: rgba(${hexToRgb(barColor)}, 0.2);"></div>
+                    <span class="gantt-bar-title">
+                        ${isBlocked ? '🔒 ' : ''}${t.title}
+                    </span>
+                </div>
+            </div>
+        `;
+    });
+    barsWrap.innerHTML = barsHtml;
+    
+    // 4. Render SVG Arrows for dependencies
+    // Setup arrow markers definition
+    let svgHtml = `
+        <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="rgba(255,255,255,0.4)" />
+            </marker>
+            <marker id="arrow-critical" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--accent-purple)" />
+            </marker>
+            <marker id="arrow-blocked" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="var(--accent-ruby)" />
+            </marker>
+        </defs>
+    `;
+    
+    sortedTasks.forEach((t, index) => {
+        t.predecessors.forEach(predId => {
+            const pred = tasks.find(x => x.id === predId);
+            if (!pred) return;
+            
+            const predIndex = sortedTasks.findIndex(x => x.id === predId);
+            if (predIndex === -1) return;
+            
+            // Start node details
+            const predDaysFromStart = getDaysBetween(timelineStartStr, pred.startDate);
+            const scaleFactor = colWidth / (activeGanttScale === 'days' ? 1 : 7);
+            const xStart = (predDaysFromStart + pred.duration) * scaleFactor;
+            const yStart = taskBarYPositions.get(predId)!;
+            
+            // End node details
+            const tDaysFromStart = getDaysBetween(timelineStartStr, t.startDate);
+            const xEnd = tDaysFromStart * scaleFactor;
+            const yEnd = taskBarYPositions.get(t.id)!;
+            
+            // Check status for styling
+            const isCriticalPath = t.critical && pred.critical;
+            const isBlockedPath = isTaskBlocked(t) && pred.status !== 'DONE';
+            
+            let strokeColor = 'rgba(255,255,255,0.2)';
+            let markerId = 'arrow';
+            let strokeWidth = '1.5';
+            let strokeDash = '';
+            
+            if (isCriticalPath) {
+                strokeColor = 'var(--accent-purple)';
+                markerId = 'arrow-critical';
+                strokeWidth = '2';
+            } else if (isBlockedPath) {
+                strokeColor = 'rgba(244, 63, 94, 0.6)';
+                markerId = 'arrow-blocked';
+                strokeWidth = '1.5';
+                strokeDash = '4,4';
+            }
+            
+            // Draw a nice S-Curve or orthogonal line
+            // Standard Bezier path
+            const controlPointX = 20; // horizontal separation bend
+            const dPath = `M ${xStart} ${yStart} 
+                           C ${xStart + controlPointX} ${yStart}, 
+                             ${xEnd - controlPointX} ${yEnd}, 
+                             ${xEnd} ${yEnd}`;
+            
+            svgHtml += `
+                <path d="${dPath}" 
+                      stroke="${strokeColor}" 
+                      stroke-width="${strokeWidth}" 
+                      stroke-dasharray="${strokeDash}"
+                      fill="none" 
+                      marker-end="url(#${markerId})" />
+            `;
+        });
+    });
+    
+    svgOverlay.innerHTML = svgHtml;
+}
+
+// Convert Hex color to RGB string for transparent fills
+function hexToRgb(hex: string): string {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) {
+        hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    }
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return `${r}, ${g}, ${b}`;
+}
+
+// Render Kanban columns
+function renderKanban() {
+    const cols = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE'] as TaskStatus[];
+    
+    cols.forEach(status => {
+        const colContainer = document.getElementById(`kanban-${status.toLowerCase()}`)!;
+        const countBadge = document.getElementById(`count-${status.toLowerCase()}`)!;
+        
+        const colTasks = tasks.filter(t => t.status === status);
+        countBadge.innerText = colTasks.length.toString();
+        
+        if (colTasks.length === 0) {
+            colContainer.innerHTML = `<div class="empty-state" style="padding: 20px 0; border: 1px dashed rgba(255,255,255,0.02)">Kosong</div>`;
+        } else {
+            let colHtml = '';
+            // Sort by start date
+            colTasks.sort((a,b) => a.startDate.localeCompare(b.startDate));
+            
+            colTasks.forEach(t => {
+                const sub = subcontractors.find(s => s.id === t.subconId);
+                const subColor = sub ? sub.color : '#3b82f6';
+                const subName = sub ? sub.name : 'Unknown';
+                
+                const isBlocked = isTaskBlocked(t);
+                
+                // Badges
+                let badgesHtml = '';
+                if (isBlocked) {
+                    badgesHtml += `<span class="card-badge badge-blocked" title="Tugas pendahulu belum selesai">🔒 TERKUNCI</span>`;
+                }
+                if (t.critical) {
+                    badgesHtml += `<span class="card-badge badge-critical-indicator">CRITICAL</span>`;
+                }
+                
+                colHtml += `
+                    <div class="kanban-card ${t.critical ? 'critical' : ''}" 
+                         draggable="true" 
+                         data-task-id="${t.id}"
+                         id="kanban-card-${t.id}"
+                         onclick="inspectTask('${t.id}')">
+                        
+                        <div class="kanban-card-header">
+                            <span class="kanban-card-title">${t.title}</span>
+                        </div>
+                        
+                        <div class="kanban-card-subcon" style="color: ${subColor}">
+                            <span class="subcon-indicator-dot" style="background-color: ${subColor}"></span>
+                            ${subName}
+                        </div>
+                        
+                        <div class="kanban-card-badges">
+                            ${badgesHtml}
+                        </div>
+                        
+                        <div class="kanban-card-footer">
+                            <span class="kanban-card-date">${t.startDate} s/d ${t.endDate}</span>
+                            <span class="kanban-card-date">⏱️ ${t.duration} hari</span>
+                        </div>
+                    </div>
+                `;
+            });
+            colContainer.innerHTML = colHtml;
+            
+            // Attach drag events to cards
+            colContainer.querySelectorAll('.kanban-card').forEach(card => {
+                card.addEventListener('dragstart', (e: any) => {
+                    dragSourceTaskId = card.getAttribute('data-task-id');
+                    card.style.opacity = '0.5';
+                    e.dataTransfer.setData('text/plain', dragSourceTaskId);
+                });
+                
+                card.addEventListener('dragend', () => {
+                    card.style.opacity = '1';
+                    dragSourceTaskId = null;
+                });
+            });
+        }
+    });
+}
+
+// Render Subcontractors Tab
+function renderSubcontractors() {
+    const listContainer = document.getElementById('subcon-card-list')!;
+    if (subcontractors.length === 0) {
+        listContainer.innerHTML = `<div class="empty-state" style="grid-column: 1/-1">Belum ada subkontraktor yang didaftarkan.</div>`;
+        return;
+    }
+    
+    let subconHtml = '';
+    subcontractors.forEach(sub => {
+        const subTasks = tasks.filter(t => t.subconId === sub.id);
+        const total = subTasks.length;
+        const done = subTasks.filter(t => t.status === 'DONE').length;
+        const inProgress = subTasks.filter(t => t.status === 'IN_PROGRESS').length;
+        
+        subconHtml += `
+            <div class="subcon-card" style="--subcon-color: ${sub.color}">
+                <div class="subcon-card-header">
+                    <div>
+                        <h3 class="subcon-card-name">${sub.name}</h3>
+                        <span class="subcon-card-spec">${sub.specialty}</span>
+                    </div>
+                </div>
+                
+                <div class="subcon-card-stats">
+                    <div class="subcon-stat-box">
+                        <span class="subcon-stat-lbl">Tugas Aktif</span>
+                        <span class="subcon-stat-val">${total - done}</span>
+                    </div>
+                    <div class="subcon-stat-box">
+                        <span class="subcon-stat-lbl">Pekerjaan Selesai</span>
+                        <span class="subcon-stat-val text-emerald">${done} / ${total}</span>
+                    </div>
+                </div>
+                
+                <div class="subcon-card-contact">
+                    <div class="contact-item">
+                        <span>📞</span> <span>${sub.phone || '-'}</span>
+                    </div>
+                    <div class="contact-item">
+                        <span>💻</span> <span>Status: ${inProgress > 0 ? 'Sedang Bekerja' : 'Idle / Standby'}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    listContainer.innerHTML = subconHtml;
+}
+
+// Render Audit Logs Table
+function renderAuditLogs() {
+    const tbody = document.getElementById('logs-tbody')!;
+    if (auditLogs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="empty-state" style="text-align: center">Belum ada log audit dependensi keamanan.</td></tr>`;
+        return;
+    }
+    
+    tbody.innerHTML = auditLogs.map(log => {
+        let typeBadgeClass = 'badge-log-validation';
+        if (log.type === 'security') typeBadgeClass = 'badge-log-security';
+        else if (log.type === 'dependency') typeBadgeClass = 'badge-log-dependency';
+        
+        let statusBadgeClass = log.status === 'OK' ? 'badge-status-ok' : 'badge-status-blocked';
+        
+        return `
+            <tr>
+                <td style="font-family: var(--font-mono); font-size: 11px;">${log.timestamp}</td>
+                <td><span class="log-type-badge ${typeBadgeClass}">${log.type}</span></td>
+                <td style="font-weight: 600;">${log.actor}</td>
+                <td>${log.description}</td>
+                <td><span class="log-status-badge ${statusBadgeClass}">${log.status}</span></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Inspect Task (Open Right Flyout)
+function inspectTask(taskId: string) {
+    currentSelectedTaskId = taskId;
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    const subcon = subcontractors.find(s => s.id === task.subconId);
+    const subconName = subcon ? subcon.name : 'Unknown';
+    const subconColor = subcon ? subcon.color : '#3b82f6';
+    
+    const panel = document.getElementById('flyout-inspector')!;
+    const content = document.getElementById('inspector-content')!;
+    
+    const isBlocked = isTaskBlocked(task);
+    
+    // Build predecessor list with statuses
+    let predListHtml = '<div class="empty-state" style="padding:10px">Tidak ada tugas pendahulu</div>';
+    if (task.predecessors.length > 0) {
+        predListHtml = '<div class="flyout-pred-list">';
+        task.predecessors.forEach(pId => {
+            const pred = tasks.find(x => x.id === pId);
+            if (pred) {
+                let statusColor = 'var(--accent-blue)';
+                if (pred.status === 'DONE') statusColor = 'var(--accent-emerald)';
+                else if (pred.status === 'IN_PROGRESS') statusColor = 'var(--accent-amber)';
+                
+                predListHtml += `
+                    <div class="flyout-pred-item">
+                        <span>${pred.title}</span>
+                        <span class="flyout-pred-status" style="background-color: rgba(${hexToRgb(statusColor)}, 0.1); color: ${statusColor}">
+                            ${pred.status}
+                        </span>
+                    </div>
+                `;
+            }
+        });
+        predListHtml += '</div>';
+    }
+    
+    // Status text colors
+    let statusColor = 'var(--accent-blue)';
+    if (task.status === 'DONE') statusColor = 'var(--accent-emerald)';
+    else if (task.status === 'IN_PROGRESS') statusColor = 'var(--accent-amber)';
+    else if (task.status === 'REVIEW') statusColor = 'var(--accent-purple)';
+    
+    content.innerHTML = `
+        <div class="flyout-section">
+            <span class="flyout-section-lbl">Judul Pekerjaan</span>
+            <h2 style="font-family: var(--font-heading); font-size: 18px; font-weight: 700; margin-top: 4px;">${task.title}</h2>
+        </div>
+
+        <div class="flyout-section">
+            <span class="flyout-section-lbl">Status Pelaksanaan</span>
+            <div style="margin-top: 6px; display: flex; align-items: center; gap: 8px;">
+                <span class="badge-role" style="background-color: rgba(${hexToRgb(statusColor)}, 0.12); border-color: rgba(${hexToRgb(statusColor)}, 0.25); color: ${statusColor}">
+                    ${task.status}
+                </span>
+                ${isBlocked ? `<span class="badge-role" style="background-color: rgba(244,63,94,0.12); border-color: rgba(244,63,94,0.25); color: var(--accent-ruby)">🔒 TERKUNCI (Blocked)</span>` : ''}
+                ${task.critical ? `<span class="badge-role" style="background-color: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.25); color: var(--accent-purple)">⚡ CPM JALUR KRITIS</span>` : ''}
+            </div>
+        </div>
+
+        <div class="flyout-section">
+            <span class="flyout-section-lbl">Subkontraktor PJ</span>
+            <div style="font-weight: 600; display:flex; align-items:center; gap:8px; margin-top:4px;">
+                <span class="subcon-indicator-dot" style="background-color: ${subconColor}; width:10px; height:10px;"></span>
+                <span style="color: ${subconColor}">${subconName}</span>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="flyout-section">
+                <span class="flyout-section-lbl">Tanggal Mulai</span>
+                <span class="flyout-section-val" style="font-family:var(--font-mono)">${task.startDate}</span>
+            </div>
+            <div class="flyout-section">
+                <span class="flyout-section-lbl">Durasi Rencana</span>
+                <span class="flyout-section-val" style="font-family:var(--font-mono)">${task.duration} Hari kerja</span>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="flyout-section">
+                <span class="flyout-section-lbl">Tanggal Selesai</span>
+                <span class="flyout-section-val" style="font-family:var(--font-mono)">${task.endDate}</span>
+            </div>
+            <div class="flyout-section">
+                <span class="flyout-section-lbl">Toleransi Keterlambatan (Slack)</span>
+                <span class="flyout-section-val" style="font-family:var(--font-mono); font-weight:600; color: ${task.critical ? 'var(--accent-purple)' : 'var(--text-muted)'}">
+                    ${task.slack !== undefined ? `${task.slack} Hari` : 'Belum dihitung'}
+                </span>
+            </div>
+        </div>
+
+        <div class="flyout-section">
+            <span class="flyout-section-lbl">Tugas Pendahulu (Predecessors)</span>
+            ${predListHtml}
+        </div>
+
+        <div class="flyout-section">
+            <span class="flyout-section-lbl">Deskripsi / Spesifikasi Material</span>
+            <div class="flyout-desc-box">${task.description || 'Tidak ada deskripsi pekerjaan.'}</div>
+        </div>
+    `;
+    
+    panel.classList.remove('hidden');
+}
+
+// Close Inspector
+function closeInspector() {
+    const panel = document.getElementById('flyout-inspector')!;
+    panel.classList.add('hidden');
+    currentSelectedTaskId = null;
+}
+
+// Form Handlers & Modals
+
+// Open Task Modal
+function openTaskModal(editId: string | null = null) {
+    const modal = document.getElementById('modal-task')!;
+    const titleEl = document.getElementById('modal-task-title')!;
+    const form = document.getElementById('form-task') as HTMLFormElement;
+    
+    form.reset();
+    
+    // Populate subcon dropdown
+    const subconSelect = document.getElementById('task-subcon') as HTMLSelectElement;
+    subconSelect.innerHTML = subcontractors.map(s => `
+        <option value="${s.id}">${s.name} (${s.specialty})</option>
+    `).join('');
+    
+    // Populate Predecessors list
+    const predContainer = document.getElementById('predecessors-checkbox-list')!;
+    
+    if (editId) {
+        const task = tasks.find(t => t.id === editId);
+        if (!task) return;
+        
+        titleEl.innerText = 'Edit Detail Tugas';
+        (document.getElementById('task-edit-id') as HTMLInputElement).value = task.id;
+        (document.getElementById('task-title') as HTMLInputElement).value = task.title;
+        (document.getElementById('task-subcon') as HTMLSelectElement).value = task.subconId;
+        (document.getElementById('task-priority') as HTMLSelectElement).value = task.priority;
+        (document.getElementById('task-start-date') as HTMLInputElement).value = task.startDate;
+        (document.getElementById('task-duration') as HTMLInputElement).value = task.duration.toString();
+        (document.getElementById('task-description') as HTMLTextAreaElement).value = task.description;
+        
+        // Render predecessors checkbox (excluding current task to prevent immediate self-loop)
+        predContainer.innerHTML = tasks
+            .filter(t => t.id !== editId)
+            .map(t => {
+                const isChecked = task.predecessors.includes(t.id);
+                return `
+                    <label class="pred-check-label">
+                        <input type="checkbox" name="pred-checkbox" value="${t.id}" ${isChecked ? 'checked' : ''}>
+                        <span>${t.title} (${t.startDate})</span>
+                    </label>
+                `;
+            }).join('');
+            
+        if (tasks.filter(t => t.id !== editId).length === 0) {
+            predContainer.innerHTML = `<div class="empty-state" style="padding:10px">Tidak ada tugas lain yang tersedia.</div>`;
+        }
+    } else {
+        titleEl.innerText = 'Tambah Tugas Baru';
+        (document.getElementById('task-edit-id') as HTMLInputElement).value = '';
+        
+        // Predecessors for new task (any task can be predecessor)
+        predContainer.innerHTML = tasks.map(t => `
+            <label class="pred-check-label">
+                <input type="checkbox" name="pred-checkbox" value="${t.id}">
+                <span>${t.title} (${t.startDate})</span>
+            </label>
+        `).join('');
+        
+        if (tasks.length === 0) {
+            predContainer.innerHTML = `<div class="empty-state" style="padding:10px">Belum ada tugas lain untuk dijadikan dependensi.</div>`;
+        }
+        
+        // Auto default start date to today or project start
+        let defaultStart = new Date().toISOString().split('T')[0];
+        if (tasks.length > 0) {
+            // Default to earliest date in existing tasks
+            defaultStart = tasks.slice().sort((a,b) => a.startDate.localeCompare(b.startDate))[0].startDate;
+        }
+        (document.getElementById('task-start-date') as HTMLInputElement).value = defaultStart;
+    }
+    
+    modal.classList.remove('hidden');
+}
+
+function closeTaskModal() {
+    document.getElementById('modal-task')!.classList.add('hidden');
+}
+
+// Open Subcon Modal
+function openSubconModal() {
+    const modal = document.getElementById('modal-subcon')!;
+    (document.getElementById('form-subcon') as HTMLFormElement).reset();
+    modal.classList.remove('hidden');
+}
+
+function closeSubconModal() {
+    document.getElementById('modal-subcon')!.classList.add('hidden');
+}
+
+// Re-evaluate schedule, run CPM, and update views
+function updateAllViews() {
+    evaluateScheduleCascades();
+    solveCPM();
+    saveToStorage();
+    
+    renderBanners();
+    renderDashboard();
+    
+    if (activeTab === 'gantt') renderGantt();
+    else if (activeTab === 'kanban') renderKanban();
+    else if (activeTab === 'subcons') renderSubcontractors();
+    else if (activeTab === 'logs') renderAuditLogs();
+}
+
+// Page Setup & Event Listeners
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Initial Calculation
+    solveCPM();
+    renderBanners();
+    renderDashboard();
+    
+    // 2. Tab Navigation Click Events
+    document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetTab = btn.getAttribute('data-tab')!;
+            
+            document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            document.querySelectorAll('.tab-content').forEach(tc => tc.classList.add('hidden'));
+            document.getElementById(`tab-${targetTab}`)!.classList.remove('hidden');
+            
+            activeTab = targetTab;
+            
+            // Adjust title and description
+            const titleEl = document.getElementById('page-title')!;
+            const subEl = document.getElementById('page-subtitle')!;
+            
+            if (targetTab === 'dashboard') {
+                titleEl.innerText = 'Architect Dashboard';
+                subEl.innerText = 'Ikhtisar metrik proyek, distribusi beban kerja subkontraktor, dan analisis jalur kritis.';
+                renderDashboard();
+            } else if (targetTab === 'gantt') {
+                titleEl.innerText = 'Timeline Gantt';
+                subEl.innerText = 'Visualisasi hubungan dependensi ketat antar-subkontraktor dan jalur kritis proyek.';
+                renderGantt();
+            } else if (targetTab === 'kanban') {
+                titleEl.innerText = 'Kanban Board';
+                subEl.innerText = 'Pelacakan status pekerjaan harian. Tarik kartu untuk memindahkan status tugas.';
+                renderKanban();
+            } else if (targetTab === 'subcons') {
+                titleEl.innerText = 'Manajemen Subkontraktor';
+                subEl.innerText = 'Daftar perusahaan subkontraktor spesialis, detail kontak, serta progres pekerjaan.';
+                renderSubcontractors();
+            } else if (targetTab === 'logs') {
+                titleEl.innerText = 'Log Audit & Analisis CPM';
+                subEl.innerText = 'Catatan detail operasi pergeseran tanggal, dependensi baru, dan deteksi konflik secara real-time.';
+                renderAuditLogs();
+            }
+        });
+    });
+    
+    // 3. Scale toggles in Gantt View
+    document.getElementById('btn-scale-days')?.addEventListener('click', (e) => {
+        document.getElementById('btn-scale-days')?.classList.add('active');
+        document.getElementById('btn-scale-weeks')?.classList.remove('active');
+        activeGanttScale = 'days';
+        renderGantt();
+    });
+    
+    document.getElementById('btn-scale-weeks')?.addEventListener('click', (e) => {
+        document.getElementById('btn-scale-weeks')?.classList.add('active');
+        document.getElementById('btn-scale-days')?.classList.remove('active');
+        activeGanttScale = 'weeks';
+        renderGantt();
+    });
+    
+    // 4. Modal Trigger Events
+    document.getElementById('btn-add-task-trigger')?.addEventListener('click', () => openTaskModal(null));
+    document.getElementById('btn-close-task-modal')?.addEventListener('click', closeTaskModal);
+    document.getElementById('btn-cancel-task')?.addEventListener('click', closeTaskModal);
+    
+    document.getElementById('btn-add-subcon-trigger')?.addEventListener('click', openSubconModal);
+    document.getElementById('btn-close-subcon-modal')?.addEventListener('click', closeSubconModal);
+    document.getElementById('btn-cancel-subcon')?.addEventListener('click', closeSubconModal);
+    
+    document.getElementById('btn-close-banner')?.addEventListener('click', () => {
+        document.getElementById('dependency-warning-banner')!.classList.add('hidden');
+    });
+    
+    document.getElementById('btn-close-inspector')?.addEventListener('click', closeInspector);
+    
+    // 5. Inspector actions
+    document.getElementById('btn-inspect-edit')?.addEventListener('click', () => {
+        if (currentSelectedTaskId) {
+            const id = currentSelectedTaskId;
+            closeInspector();
+            openTaskModal(id);
+        }
+    });
+    
+    document.getElementById('btn-inspect-delete')?.addEventListener('click', () => {
+        if (currentSelectedTaskId && confirm('Apakah Anda yakin ingin menghapus tugas ini beserta semua dependensinya?')) {
+            const idToDelete = currentSelectedTaskId;
+            const task = tasks.find(t => t.id === idToDelete);
+            
+            // Delete task
+            tasks = tasks.filter(t => t.id !== idToDelete);
+            
+            // Remove from predecessors of other tasks
+            tasks.forEach(t => {
+                t.predecessors = t.predecessors.filter(pId => pId !== idToDelete);
+            });
+            
+            logEvent('security', 'Architect', `Menghapus tugas "${task ? task.title : idToDelete}" dari data konstruksi.`);
+            closeInspector();
+            showToast('Tugas berhasil dihapus!', 'success');
+            updateAllViews();
+        }
+    });
+    
+    // 6. Clear Logs event
+    document.getElementById('btn-clear-logs')?.addEventListener('click', () => {
+        if (confirm('Bersihkan seluruh catatan log audit?')) {
+            auditLogs = [];
+            logEvent('security', 'Architect', 'Log audit dibersihkan secara manual.');
+            updateAllViews();
+        }
+    });
+    
+    // 7. Form submissions
+    
+    // Save/Add Task
+    document.getElementById('form-task')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const editId = (document.getElementById('task-edit-id') as HTMLInputElement).value;
+        const title = (document.getElementById('task-title') as HTMLInputElement).value.trim();
+        const subconId = (document.getElementById('task-subcon') as HTMLSelectElement).value;
+        const priority = (document.getElementById('task-priority') as HTMLSelectElement).value as TaskPriority;
+        const startDate = (document.getElementById('task-start-date') as HTMLInputElement).value;
+        const duration = parseInt((document.getElementById('task-duration') as HTMLInputElement).value, 10);
+        const description = (document.getElementById('task-description') as HTMLTextAreaElement).value.trim();
+        
+        // Calculate inclusive end date
+        const endDate = addDays(startDate, duration - 1);
+        
+        // Gather selected predecessors
+        const predCheckboxes = document.getElementsByName('pred-checkbox') as NodeListOf<HTMLInputElement>;
+        const selectedPreds: string[] = [];
+        predCheckboxes.forEach(cb => {
+            if (cb.checked) selectedPreds.push(cb.value);
+        });
+        
+        // Cycle checking!
+        if (editId) {
+            // Check if any checked predecessor would cause a cycle
+            for (const pId of selectedPreds) {
+                if (checkCycle(editId, pId)) {
+                    showToast(`Gagal menyimpan: Terdeteksi loop dependensi melingkar! (Cycle detected with task "${tasks.find(x=>x.id===pId)?.title}")`, 'error');
+                    logEvent('security', 'System Guard', `Modifikasi dependensi dibatalkan: Upaya penambahan dependensi melingkar pada tugas "${title}".`, 'BLOCKED');
+                    return;
+                }
+            }
+            
+            // Edit existing
+            const taskIdx = tasks.findIndex(t => t.id === editId);
+            if (taskIdx > -1) {
+                const prev = tasks[taskIdx];
+                
+                // If it is currently locked (has unfinished predecessors) and trying to change status to DONE
+                if (prev.status !== 'DONE' && prev.status !== 'TODO' && selectedPreds.some(pId => tasks.find(x=>x.id===pId)?.status !== 'DONE')) {
+                    // Predecessors are not done! If they tried to force mark it done, warning
+                }
+                
+                tasks[taskIdx] = {
+                    ...prev,
+                    title,
+                    subconId,
+                    priority,
+                    startDate,
+                    duration,
+                    endDate,
+                    description,
+                    predecessors: selectedPreds
+                };
+                
+                logEvent('validation', 'Architect', `Memperbarui rincian tugas "${title}" (ID: ${editId}).`);
+                showToast('Tugas berhasil diperbarui!', 'success');
+            }
+        } else {
+            // New Task
+            const newTaskId = 'task-' + Date.now();
+            
+            // Check cycles for new task (though unlikely as it's new, but good for validation)
+            const tempTask: Task = {
+                id: newTaskId,
+                title,
+                description,
+                subconId,
+                status: 'TODO',
+                priority,
+                startDate,
+                duration,
+                endDate,
+                predecessors: selectedPreds
+            };
+            
+            tasks.push(tempTask);
+            logEvent('validation', 'Architect', `Mendaftarkan tugas konstruksi baru: "${title}".`);
+            showToast('Tugas baru berhasil ditambahkan!', 'success');
+        }
+        
+        closeTaskModal();
+        updateAllViews();
+    });
+    
+    // Save Subcontractor
+    document.getElementById('form-subcon')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const name = (document.getElementById('subcon-name') as HTMLInputElement).value.trim();
+        const specialty = (document.getElementById('subcon-specialty') as HTMLInputElement).value.trim();
+        const phone = (document.getElementById('subcon-phone') as HTMLInputElement).value.trim();
+        const color = (document.getElementById('subcon-color') as HTMLInputElement).value;
+        
+        const newSub: Subcontractor = {
+            id: 'sub-' + Date.now(),
+            name,
+            specialty,
+            phone,
+            color
+        };
+        
+        subcontractors.push(newSub);
+        logEvent('security', 'Architect', `Mendaftarkan subkontraktor spesialis baru: "${name}" (${specialty}).`);
+        showToast('Subkontraktor terdaftar!', 'success');
+        
+        closeSubconModal();
+        updateAllViews();
+    });
+    
+    // 8. Kanban Drag and Drop Event listeners
+    const kanbanColumns = document.querySelectorAll('.kanban-column');
+    kanbanColumns.forEach(column => {
+        column.addEventListener('dragover', (e: any) => {
+            e.preventDefault();
+            column.classList.add('drag-over');
+        });
+        
+        column.addEventListener('dragleave', () => {
+            column.classList.remove('drag-over');
+        });
+        
+        column.addEventListener('drop', (e: any) => {
+            e.preventDefault();
+            column.classList.remove('drag-over');
+            
+            const taskId = e.dataTransfer.getData('text/plain');
+            const targetStatus = column.getAttribute('data-status') as TaskStatus;
+            
+            if (!taskId || !targetStatus) return;
+            
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+            
+            if (task.status === targetStatus) return; // No change
+            
+            // STRICT DEPENDENCY ENFORCEMENT
+            // If target status is not TODO, verify all predecessors are DONE
+            if (targetStatus !== 'TODO') {
+                const unfinishedPreds: Task[] = [];
+                task.predecessors.forEach(pId => {
+                    const pred = tasks.find(x => x.id === pId);
+                    if (pred && pred.status !== 'DONE') {
+                        unfinishedPreds.push(pred);
+                    }
+                });
+                
+                if (unfinishedPreds.length > 0) {
+                    const names = unfinishedPreds.map(p => `"${p.title}"`).join(', ');
+                    showToast(`Gagal memindahkan status! Tugas ini terkunci. Harap selesaikan pendahulu terlebih dahulu: ${names}`, 'error');
+                    logEvent('security', 'Security Policy', `Pemindahan tugas "${task.title}" ke status "${targetStatus}" ditolak karena pendahulu (${names}) belum selesai (DONE).`, 'BLOCKED');
+                    return;
+                }
+            }
+            
+            // If successful transition
+            const oldStatus = task.status;
+            task.status = targetStatus;
+            
+            logEvent('validation', 'Architect', `Mengubah status tugas "${task.title}" dari ${oldStatus} menjadi ${targetStatus}.`);
+            showToast(`Status tugas diubah ke ${targetStatus}`, 'success');
+            
+            updateAllViews();
+        });
+    });
+    
+    // 9. Initial setup run
+    // Add first logs if empty
+    if (auditLogs.length === 0) {
+        logEvent('security', 'System Initiator', 'Sistem pelacakan ConstructIQ berhasil dimulai.');
+        logEvent('validation', 'System Scheduler', 'Model CPM dijalankan. Jalur kritis berhasil dihitung.');
+    }
+    
+    updateAllViews();
+});
