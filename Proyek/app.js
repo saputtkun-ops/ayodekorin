@@ -1873,4 +1873,3 @@ window.showProjectMenu = function(projectId, e) {
         document.addEventListener('click', closeMenu);
     }, 50);
 };
-}
