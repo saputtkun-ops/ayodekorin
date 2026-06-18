@@ -913,6 +913,38 @@ body {
     border-top-left-radius: inherit;
     border-bottom-left-radius: inherit;
 }
+.gantt-day-toggle-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid rgba(255, 255, 255, 0.2);
+    background-color: transparent;
+    color: transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.gantt-day-toggle-btn:hover {
+    border-color: #10b981;
+    color: rgba(16, 185, 129, 0.6) !important;
+    background-color: rgba(16, 185, 129, 0.1);
+}
+
+.gantt-day-toggle-btn.done {
+    border-color: #10b981 !important;
+    background-color: #10b981 !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.gantt-day-toggle-btn.done:hover {
+    background-color: #059669 !important;
+    border-color: #059669 !important;
+}
 
 /* Kanban Board Styling */
 .kanban-container {

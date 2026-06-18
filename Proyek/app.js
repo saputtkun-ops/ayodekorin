@@ -739,11 +739,14 @@ function renderGantt() {
                 const isDayDone = status === 'DONE';
                 
                 dailySegmentsHtml += `
-                    <div class="gantt-day-segment ${isDayDone ? 'done' : 'tunda'}" 
-                         title="${formatDateIndo(dateStr)}: ${isDayDone ? 'Selesai (Done)' : 'Ditunda (Tunda)'}"
-                         onclick="event.stopPropagation(); toggleDayStatus('${t.id}', '${dateStr}')"
-                         style="flex: 1; height: 100%; border-right: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; background-color: ${isDayDone ? 'rgba(16, 185, 129, 0.25)' : 'rgba(244, 63, 94, 0.15)'}; transition: background-color 0.2s; cursor: pointer;">
-                         <span style="font-size: 8px; font-weight: bold; color: ${isDayDone ? '#10b981' : '#f43f5e'}">${isDayDone ? '✓' : '✗'}</span>
+                    <div class="gantt-day-segment" 
+                         style="flex: 1; height: 100%; border-right: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; background-color: rgba(255,255,255,0.01);">
+                         <button onclick="event.stopPropagation(); toggleDayStatus('${t.id}', '${dateStr}')"
+                                 title="${formatDateIndo(dateStr)}: ${isDayDone ? 'Selesai (Done)' : 'Belum Selesai (Tunda)'} - Klik untuk mengubah"
+                                 class="gantt-day-toggle-btn ${isDayDone ? 'done' : 'tunda'}"
+                                 style="z-index: 3;">
+                             ✓
+                         </button>
                     </div>
                 `;
                 curDate = addDays(curDate, 1);
@@ -766,8 +769,8 @@ function renderGantt() {
                         ${dailySegmentsHtml}
                     </div>
                     
-                    <!-- Text Overlay -->
-                    <span class="gantt-bar-title" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); z-index: 2; pointer-events: none; font-size: 11px; font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,0.9); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: calc(100% - 16px);">
+                    <!-- Text Watermark Overlay -->
+                    <span class="gantt-bar-title" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); z-index: 2; pointer-events: none; font-size: 10px; font-weight: 700; color: white; opacity: 0.15; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: calc(100% - 16px);">
                         ${isBlocked ? '🔒 ' : ''}${t.title} (${t.progress}%)
                     </span>
                 </div>
@@ -1487,7 +1490,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     tasks[taskIdx].dailyStatus = {};
                     let curDate = startDate;
                     for (let i = 0; i < duration; i++) {
-                        tasks[taskIdx].dailyStatus[curDate] = status;
+                        tasks[taskIdx].dailyStatus[curDate] = status === 'DONE' ? 'DONE' : 'TUNDA';
                         curDate = addDays(curDate, 1);
                     }
                 }
@@ -1517,7 +1520,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let curDate = startDate;
             for (let i = 0; i < duration; i++) {
-                tempTask.dailyStatus[curDate] = status;
+                tempTask.dailyStatus[curDate] = status === 'DONE' ? 'DONE' : 'TUNDA';
                 curDate = addDays(curDate, 1);
             }
             
@@ -1604,7 +1607,7 @@ document.addEventListener('DOMContentLoaded', () => {
             task.dailyStatus = {};
             let curDate = task.startDate;
             for (let i = 0; i < task.duration; i++) {
-                task.dailyStatus[curDate] = targetStatus;
+                task.dailyStatus[curDate] = targetStatus === 'DONE' ? 'DONE' : 'TUNDA';
                 curDate = addDays(curDate, 1);
             }
             recalculateTaskProgress(task);
@@ -1989,13 +1992,6 @@ window.getDayStatus = function(task, dateStr) {
     
     // Default logic based on overall task status
     if (task.status === 'DONE') return 'DONE';
-    if (task.status === 'TUNDA') return 'TUNDA';
-    
-    // Auto-progress based on schedule for PROGRES tasks
-    const todayStr = new Date().toISOString().split('T')[0];
-    if (dateStr < todayStr) {
-        return 'DONE';
-    }
     return 'TUNDA';
 };
 
@@ -2057,7 +2053,9 @@ window.recalculateTaskProgress = function(task) {
     if (progress === 100) {
         task.status = 'DONE';
     } else if (progress === 0) {
-        task.status = 'TUNDA';
+        if (task.status !== 'PROGRES') {
+            task.status = 'TUNDA';
+        }
     } else {
         task.status = 'PROGRES';
     }
