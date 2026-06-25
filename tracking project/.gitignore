@@ -43,3 +43,5 @@ next-env.d.ts
 # database
 local.db
 *.db
+
+.vercel

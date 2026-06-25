@@ -28,7 +28,9 @@ import {
   ArrowRightCircle,
   FileSpreadsheet,
   Clock,
-  DollarSign
+  DollarSign,
+  Edit,
+  Trash2
 } from 'lucide-react';
 
 // ==========================================================================
@@ -217,6 +219,23 @@ export default function Home() {
   const [newProjValue, setNewProjValue] = useState('');
   const [newProjStart, setNewProjStart] = useState('');
   const [newProjEnd, setNewProjEnd] = useState('');
+
+  // Manager Edit Project states
+  const [isEditingProject, setIsEditingProject] = useState(false);
+  const [editProjName, setEditProjName] = useState('');
+  const [editProjLocation, setEditProjLocation] = useState('');
+  const [editProjOwner, setEditProjOwner] = useState('');
+  const [editProjValue, setEditProjValue] = useState('');
+  const [editProjStart, setEditProjStart] = useState('');
+  const [editProjEnd, setEditProjEnd] = useState('');
+
+  // Manager Add Task states
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const [newTaskName, setNewTaskName] = useState('');
+  const [newTaskVolume, setNewTaskVolume] = useState('');
+  const [newTaskSatuan, setNewTaskSatuan] = useState('');
+  const [newTaskBobot, setNewTaskBobot] = useState('');
+  const [newTaskTargetDays, setNewTaskTargetDays] = useState('');
 
   // Mobile Simulator state
   const [mobileScreen, setMobileScreen] = useState<'project-list' | 'project-detail' | 'task-edit'>('project-list');
@@ -486,6 +505,148 @@ export default function Home() {
     setAddProjectModalOpen(false);
 
     triggerToast("Proyek baru berhasil ditambahkan", "success");
+  };
+
+  const handleOpenDetailModal = (project: Project) => {
+    setSelectedProjectId(project.project_id);
+    setEditProjName(project.project_name);
+    setEditProjLocation(project.location);
+    setEditProjOwner(project.owner);
+    setEditProjValue(project.value.toString());
+    setEditProjStart(project.start_date);
+    setEditProjEnd(project.end_date);
+    setIsEditingProject(false);
+    setIsAddingTask(false);
+    setProjectDetailModalOpen(true);
+  };
+
+  const handleSaveProjectInfo = (projectId: string) => {
+    if (!editProjName || !editProjLocation || !editProjOwner || !editProjValue || !editProjStart || !editProjEnd) {
+      triggerToast("Mohon isi seluruh kolom wajib info proyek", "error");
+      return;
+    }
+
+    const updatedProjects = projects.map(p => {
+      if (p.project_id === projectId) {
+        return {
+          ...p,
+          project_name: editProjName,
+          location: editProjLocation,
+          owner: editProjOwner,
+          value: parseInt(editProjValue) || p.value,
+          start_date: editProjStart,
+          end_date: editProjEnd
+        };
+      }
+      return p;
+    });
+
+    const updatedNotifications = [
+      {
+        id: "notif-edit-" + Date.now(),
+        type: "alert-info" as const,
+        message: `Informasi proyek *${editProjName}* telah diubah oleh Manager`,
+        time: "Baru saja"
+      },
+      ...notifications
+    ];
+
+    saveState(updatedProjects, updatedNotifications);
+    setIsEditingProject(false);
+    triggerToast("Informasi proyek berhasil diperbarui", "success");
+  };
+
+  const handleAddTask = (projectId: string) => {
+    if (!newTaskName || !newTaskVolume || !newTaskSatuan || !newTaskBobot || !newTaskTargetDays) {
+      triggerToast("Mohon isi seluruh kolom data pekerjaan", "error");
+      return;
+    }
+
+    const taskWeight = parseFloat(newTaskBobot);
+    const taskVolume = parseFloat(newTaskVolume);
+    const taskTarget = parseInt(newTaskTargetDays);
+
+    if (isNaN(taskWeight) || isNaN(taskVolume) || isNaN(taskTarget)) {
+      triggerToast("Data volume, bobot, dan target harus berupa angka", "error");
+      return;
+    }
+
+    const updatedProjects = projects.map(p => {
+      if (p.project_id === projectId) {
+        const newTask: Task = {
+          task_id: "t-added-" + Date.now(),
+          task_name: newTaskName,
+          volume: taskVolume,
+          satuan: newTaskSatuan,
+          bobot: taskWeight,
+          status: 'Belum Dimulai',
+          progress: 0,
+          target_days: taskTarget,
+          current_day: 0
+        };
+
+        const nextTasks = [...p.tasks, newTask];
+        const nextPercentage = calculateWeightedProjectPercentage(nextTasks);
+
+        return {
+          ...p,
+          tasks: nextTasks,
+          percentage: nextPercentage
+        };
+      }
+      return p;
+    });
+
+    const updatedNotifications = [
+      {
+        id: "notif-addtask-" + Date.now(),
+        type: "alert-info" as const,
+        message: `Pekerjaan baru *${newTaskName}* ditambahkan ke proyek *${editProjName}*`,
+        time: "Baru saja"
+      },
+      ...notifications
+    ];
+
+    saveState(updatedProjects, updatedNotifications);
+    
+    // Reset Form
+    setNewTaskName('');
+    setNewTaskVolume('');
+    setNewTaskSatuan('');
+    setNewTaskBobot('');
+    setNewTaskTargetDays('');
+    setIsAddingTask(false);
+
+    triggerToast(`Pekerjaan ${newTaskName} berhasil ditambahkan`, "success");
+  };
+
+  const handleDeleteTask = (projectId: string, taskId: string, taskName: string) => {
+    const updatedProjects = projects.map(p => {
+      if (p.project_id === projectId) {
+        const nextTasks = p.tasks.filter(t => t.task_id !== taskId);
+        const nextPercentage = calculateWeightedProjectPercentage(nextTasks);
+
+        return {
+          ...p,
+          tasks: nextTasks,
+          percentage: nextPercentage
+        };
+      }
+      return p;
+    });
+
+    const updatedNotifications = [
+      {
+        id: "notif-deltask-" + Date.now(),
+        type: "alert-delayed" as const,
+        message: `Pekerjaan *${taskName}* dihapus dari proyek *${editProjName}*`,
+        time: "Baru saja"
+      },
+      ...notifications
+    ];
+
+    saveState(updatedProjects, updatedNotifications);
+    triggerToast(`Pekerjaan ${taskName} berhasil dihapus`, "success");
   };
 
   // ==========================================================================
@@ -1047,10 +1208,7 @@ export default function Home() {
                             </td>
                             <td className="py-3.5 px-4">
                               <button
-                                onClick={() => {
-                                  setSelectedProjectId(p.project_id);
-                                  setProjectDetailModalOpen(true);
-                                }}
+                                onClick={() => handleOpenDetailModal(p)}
                                 className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-xs font-semibold transition-all"
                               >
                                 <Eye className="w-3.5 h-3.5" />
@@ -1639,11 +1797,72 @@ export default function Home() {
             
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-              <div>
-                <h3 className="font-bold text-primary text-base leading-tight">{currentViewingProject.project_name}</h3>
-                <span className="text-xs text-slate-400 font-medium">{currentViewingProject.location} • Pemilik: {currentViewingProject.owner}</span>
-              </div>
-              <button onClick={() => setProjectDetailModalOpen(false)} className="text-slate-400 hover:text-red-500 transition-all">
+              {isEditingProject ? (
+                <div className="flex-1 flex flex-col md:flex-row gap-3 mr-4 items-center">
+                  <div className="flex-1 w-full space-y-2">
+                    <input
+                      type="text"
+                      value={editProjName}
+                      onChange={(e) => setEditProjName(e.target.value)}
+                      className="w-full text-sm font-bold border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-secondary focus:border-secondary"
+                      placeholder="Nama Proyek"
+                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={editProjLocation}
+                        onChange={(e) => setEditProjLocation(e.target.value)}
+                        className="w-1/2 text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none"
+                        placeholder="Lokasi Proyek"
+                      />
+                      <input
+                        type="text"
+                        value={editProjOwner}
+                        onChange={(e) => setEditProjOwner(e.target.value)}
+                        className="w-1/2 text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none"
+                        placeholder="Pemilik Proyek"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0 w-full md:w-auto justify-end">
+                    <button
+                      onClick={() => handleSaveProjectInfo(currentViewingProject.project_id)}
+                      className="px-3.5 py-2 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 shadow-sm transition-all"
+                    >
+                      Simpan Info
+                    </button>
+                    <button
+                      onClick={() => setIsEditingProject(false)}
+                      className="px-3.5 py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-all"
+                    >
+                      Batal
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex justify-between items-center mr-4">
+                  <div>
+                    <h3 className="font-bold text-primary text-base leading-tight">{currentViewingProject.project_name}</h3>
+                    <span className="text-xs text-slate-400 font-medium">{currentViewingProject.location} • Pemilik: {currentViewingProject.owner}</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setEditProjName(currentViewingProject.project_name);
+                      setEditProjLocation(currentViewingProject.location);
+                      setEditProjOwner(currentViewingProject.owner);
+                      setEditProjValue(currentViewingProject.value.toString());
+                      setEditProjStart(currentViewingProject.start_date);
+                      setEditProjEnd(currentViewingProject.end_date);
+                      setIsEditingProject(true);
+                    }}
+                    className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-xs font-bold transition-all shadow-sm"
+                  >
+                    <Edit className="w-3.5 h-3.5 text-slate-500" />
+                    Edit Detail Proyek
+                  </button>
+                </div>
+              )}
+              <button onClick={() => setProjectDetailModalOpen(false)} className="text-slate-400 hover:text-red-500 transition-all shrink-0">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1652,25 +1871,152 @@ export default function Home() {
             <div className="flex-1 overflow-y-auto p-6 flex flex-col lg:flex-row gap-6">
               {/* Left Column: Stats & Timeline Table */}
               <div className="flex-1 flex flex-col gap-5">
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3 flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Nilai Kontrak</span>
-                    <strong className="text-xs md:text-sm font-bold text-primary mt-1">{formatCurrency(currentViewingProject.value)}</strong>
+                
+                {/* Stats Section */}
+                {isEditingProject ? (
+                  <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Nilai Kontrak (Rp)</span>
+                      <input
+                        type="number"
+                        value={editProjValue}
+                        onChange={(e) => setEditProjValue(e.target.value)}
+                        className="text-xs border border-slate-200 rounded-lg p-2 focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Tanggal Mulai</span>
+                      <input
+                        type="date"
+                        value={editProjStart}
+                        onChange={(e) => setEditProjStart(e.target.value)}
+                        className="text-xs border border-slate-200 rounded-lg p-2 focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Tanggal Selesai (Target)</span>
+                      <input
+                        type="date"
+                        value={editProjEnd}
+                        onChange={(e) => setEditProjEnd(e.target.value)}
+                        className="text-xs border border-slate-200 rounded-lg p-2 focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1 justify-end">
+                      <span className="text-[10px] text-slate-400 italic">Nilai progres keseluruhan dihitung otomatis dari bobot pekerjaan.</span>
+                    </div>
                   </div>
-                  <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3 flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Target Periode</span>
-                    <strong className="text-xs md:text-sm font-bold text-primary mt-1">
-                      {formatDateShort(currentViewingProject.start_date)} - {formatDateShort(currentViewingProject.end_date)}
-                    </strong>
+                ) : (
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3 flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Nilai Kontrak</span>
+                      <strong className="text-xs md:text-sm font-bold text-primary mt-1">{formatCurrency(currentViewingProject.value)}</strong>
+                    </div>
+                    <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3 flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Target Periode</span>
+                      <strong className="text-xs md:text-sm font-bold text-primary mt-1">
+                        {formatDateShort(currentViewingProject.start_date)} - {formatDateShort(currentViewingProject.end_date)}
+                      </strong>
+                    </div>
+                    <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3 flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Progres Kumulatif</span>
+                      <strong className="text-xs md:text-sm font-extrabold text-secondary mt-1">{currentViewingProject.percentage}%</strong>
+                    </div>
                   </div>
-                  <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3 flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Progres Kumulatif</span>
-                    <strong className="text-xs md:text-sm font-extrabold text-secondary mt-1">{currentViewingProject.percentage}%</strong>
-                  </div>
-                </div>
+                )}
 
+                {/* Timeline Section */}
                 <div className="flex flex-col gap-3">
-                  <h4 className="text-xs font-bold text-primary uppercase tracking-wider border-b-2 border-secondary pb-1.5 self-start">Timeline & Rincian Progres</h4>
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                    <h4 className="text-xs font-bold text-primary uppercase tracking-wider border-b-2 border-secondary pb-1 self-start">
+                      Timeline & Rincian Progres
+                    </h4>
+                    {!isAddingTask && (
+                      <button
+                        onClick={() => setIsAddingTask(true)}
+                        className="flex items-center gap-1 px-3 py-1 bg-secondary text-white rounded-lg text-[10px] font-bold hover:bg-orange-600 transition-all shadow-sm"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Tambah Pekerjaan
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Inline Add Task Form */}
+                  {isAddingTask && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3 animate-fadeIn">
+                      <span className="text-[10px] font-bold text-primary uppercase">Tambah Item Pekerjaan Baru</span>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                        <div className="flex flex-col gap-1 col-span-2">
+                          <span className="text-[9px] text-slate-400 font-bold uppercase">Nama Pekerjaan</span>
+                          <input
+                            type="text"
+                            value={newTaskName}
+                            onChange={(e) => setNewTaskName(e.target.value)}
+                            placeholder="Contoh: Pekerjaan Sloof"
+                            className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-none"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[9px] text-slate-400 font-bold uppercase">Volume</span>
+                          <input
+                            type="number"
+                            value={newTaskVolume}
+                            onChange={(e) => setNewTaskVolume(e.target.value)}
+                            placeholder="Volume"
+                            className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-none"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[9px] text-slate-400 font-bold uppercase">Satuan</span>
+                          <input
+                            type="text"
+                            value={newTaskSatuan}
+                            onChange={(e) => setNewTaskSatuan(e.target.value)}
+                            placeholder="m3, m2, dll"
+                            className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-none"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[9px] text-slate-400 font-bold uppercase">Bobot (%)</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={newTaskBobot}
+                            onChange={(e) => setNewTaskBobot(e.target.value)}
+                            placeholder="Bobot %"
+                            className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-none"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[9px] text-slate-400 font-bold uppercase">Target (Hari)</span>
+                          <input
+                            type="number"
+                            value={newTaskTargetDays}
+                            onChange={(e) => setNewTaskTargetDays(e.target.value)}
+                            placeholder="Target Hari"
+                            className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2 pt-2 border-t border-slate-200/40">
+                        <button
+                          onClick={() => setIsAddingTask(false)}
+                          className="px-3.5 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          onClick={() => handleAddTask(currentViewingProject.project_id)}
+                          className="px-3.5 py-1.5 bg-secondary text-white rounded-lg text-xs font-bold hover:bg-orange-600 shadow-sm"
+                        >
+                          Simpan Pekerjaan
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tasks Table */}
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
@@ -1683,6 +2029,7 @@ export default function Home() {
                           <th className="py-2.5 px-3">Progres</th>
                           <th className="py-2.5 px-3">Status</th>
                           <th className="py-2.5 px-3">Jadwal</th>
+                          <th className="py-2.5 px-3 text-center">Aksi</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -1718,6 +2065,15 @@ export default function Home() {
                                   scheduleStatus === 'Ahead Schedule' ? 'bg-emerald-50 text-emerald-600' :
                                   scheduleStatus === 'On Schedule' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'
                                 }`}>{scheduleStatus}</span>
+                              </td>
+                              <td className="py-2.5 px-3 text-center">
+                                <button
+                                  onClick={() => handleDeleteTask(currentViewingProject.project_id, t.task_id, t.task_name)}
+                                  className="text-slate-400 hover:text-red-500 p-1 rounded transition-all"
+                                  title="Hapus Pekerjaan"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
                               </td>
                             </tr>
                           );
