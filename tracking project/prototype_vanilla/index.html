@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saputt Project - Sistem Monitoring Konstruksi Sipil</title>
+    <!-- Google Fonts: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Main App Header & Role Switcher -->
+    <header class="app-header">
+        <div class="header-logo">
+            <div class="logo-icon">
+                <i data-lucide="hard-hat"></i>
+            </div>
+            <div class="logo-text">
+                <h1>Saputt Project</h1>
+                <span>Sistem Monitoring Konstruksi Sipil v1.0</span>
+            </div>
+        </div>
+        <div class="role-switcher-container">
+            <span class="switcher-label">Pilih Peran Tampilan:</span>
+            <div class="role-tabs">
+                <button class="role-tab active" id="btn-role-manager" onclick="switchRole('manager')">
+                    <i data-lucide="layout-dashboard"></i> Manager (Web Dashboard)
+                </button>
+                <button class="role-tab" id="btn-role-pelaksana" onclick="switchRole('pelaksana')">
+                    <i data-lucide="smartphone"></i> Pelaksana (Mobile View)
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-content">
+        
+        <!-- ========================================== -->
+        <!-- MANAGER VIEW (WEB DASHBOARD)               -->
+        <!-- ========================================== -->
+        <section id="manager-view" class="view-section active">
+            <!-- KPI Summary Cards -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-info">
+                        <span class="kpi-title">Total Proyek Aktif</span>
+                        <h3 class="kpi-value" id="kpi-active-projects">0</h3>
+                    </div>
+                    <div class="kpi-icon icon-active">
+                        <i data-lucide="briefcase"></i>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-info">
+                        <span class="kpi-title">Proyek Selesai</span>
+                        <h3 class="kpi-value" id="kpi-completed-projects">0</h3>
+                    </div>
+                    <div class="kpi-icon icon-completed">
+                        <i data-lucide="check-circle-2"></i>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-info">
+                        <span class="kpi-title">Proyek Terlambat</span>
+                        <h3 class="kpi-value text-danger" id="kpi-delayed-projects">0</h3>
+                    </div>
+                    <div class="kpi-icon icon-delayed">
+                        <i data-lucide="alert-triangle"></i>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-info">
+                        <span class="kpi-title">Rata-rata Progres</span>
+                        <h3 class="kpi-value" id="kpi-avg-progress">0%</h3>
+                    </div>
+                    <div class="kpi-icon icon-avg">
+                        <i data-lucide="percent"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Main Grid -->
+            <div class="dashboard-grid">
+                <!-- Left Panel: Project Sheet -->
+                <div class="dashboard-panel card-panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i data-lucide="sheet" class="title-icon"></i>
+                            <h2>Project Sheet</h2>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-secondary btn-sm" onclick="exportAllProjectsToCSV()">
+                                <i data-lucide="download"></i> Ekspor CSV
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick="openAddProjectModal()">
+                                <i data-lucide="plus"></i> Tambah Proyek
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="project-table">
+                            <thead>
+                                <tr>
+                                    <th>Nama Proyek</th>
+                                    <th>Lokasi</th>
+                                    <th>Pemilik</th>
+                                    <th>Nilai Proyek</th>
+                                    <th>Target Timeline</th>
+                                    <th>Progres</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="project-table-body">
+                                <!-- Generated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Right Panel: Charts and Alerts -->
+                <div class="dashboard-side-grid">
+                    <!-- Progress Mingguan Chart -->
+                    <div class="dashboard-panel card-panel">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <i data-lucide="trending-up" class="title-icon"></i>
+                                <h2>Progress Rata-rata Proyek</h2>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <!-- Custom Interactive SVG Line Chart -->
+                            <div class="svg-chart-wrapper" id="svg-chart-wrapper">
+                                <!-- SVG Chart will be generated dynamically by JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Analysis Center -->
+                    <div class="dashboard-panel card-panel" style="border: 1px solid #C084FC; background: linear-gradient(180deg, #FFFFFF, #FAF5FF);">
+                        <div class="panel-header" style="border-bottom-color: #E9D5FF;">
+                            <div class="panel-title">
+                                <i data-lucide="brain" class="title-icon" style="color: #A855F7;"></i>
+                                <h2 style="color: #7E22CE;">Saputt AI - Analisis & Prediksi</h2>
+                            </div>
+                        </div>
+                        <div class="ai-analysis-list" id="ai-analysis-list" style="display: flex; flex-direction: column; gap: 12px;">
+                            <!-- Generated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Notification Panel -->
+                    <div class="dashboard-panel card-panel">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <i data-lucide="bell" class="title-icon"></i>
+                                <h2>Notifikasi Lapangan</h2>
+                            </div>
+                        </div>
+                        <div class="notification-list" id="notification-list">
+                            <!-- Generated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- PELAKSANA VIEW (MOBILE SIMULATOR)          -->
+        <!-- ========================================== -->
+        <section id="pelaksana-view" class="view-section">
+            <div class="simulator-container">
+                <!-- Mobile Simulator Device -->
+                <div class="mobile-device">
+                    <!-- Device Status Bar -->
+                    <div class="device-status-bar">
+                        <span class="status-time">09:41</span>
+                        <div class="status-notch"></div>
+                        <div class="status-icons">
+                            <i data-lucide="signal" class="mini-icon"></i>
+                            <i data-lucide="wifi" class="mini-icon"></i>
+                            <i data-lucide="battery" class="mini-icon"></i>
+                        </div>
+                    </div>
+
+                    <!-- Device App Header -->
+                    <div class="device-header">
+                        <button class="device-back-btn hidden" id="device-back-btn" onclick="mobileGoBack()">
+                            <i data-lucide="chevron-left"></i>
+                        </button>
+                        <span class="device-title" id="device-header-title">Saputt Mobile</span>
+                        <div class="device-user-badge">
+                            <span class="user-role-badge">Pelaksana</span>
+                        </div>
+                    </div>
+
+                    <!-- Device Screen Area -->
+                    <div class="device-screen" id="device-screen-content">
+                        <!-- Screens will be dynamically swapped here by JS -->
+                    </div>
+
+                    <!-- Device Home Bar -->
+                    <div class="device-home-bar"></div>
+                </div>
+
+                <!-- Simulation Sidebar Instructions -->
+                <div class="simulator-instructions">
+                    <div class="instruction-card">
+                        <h3><i data-lucide="info"></i> Simulasi Lapangan</h3>
+                        <p>Bagian ini mensimulasikan <strong>Aplikasi Android Pelaksana (Phase 1)</strong>.</p>
+                        <ul class="simulation-steps">
+                            <li><span class="step-num">1</span> Pilih salah satu proyek aktif di layar handphone.</li>
+                            <li><span class="step-num">2</span> Lihat timeline pekerjaan konstruksi sipil dari Persiapan hingga Finishing.</li>
+                            <li><span class="step-num">3</span> Pilih salah satu item pekerjaan (misal: <strong>Sloof</strong>) untuk memperbarui progres, status, dan mengunggah dokumentasi foto.</li>
+                            <li><span class="step-num">4</span> Gunakan fitur <strong>Share WhatsApp</strong> untuk menyalin teks laporan otomatis atau mengirimkannya secara langsung.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ========================================== -->
+    <!-- MODALS                                     -->
+    <!-- ========================================== -->
+
+    <!-- Add Project Modal -->
+    <div id="add-project-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Tambah Proyek Konstruksi Baru</h3>
+                <button class="modal-close-btn" onclick="closeAddProjectModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form id="add-project-form" onsubmit="handleAddProjectSubmit(event)">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="project-name">Nama Proyek *</label>
+                        <input type="text" id="project-name" required placeholder="Contoh: Pembangunan Ruko Kebayoran">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="project-location">Lokasi Proyek *</label>
+                            <input type="text" id="project-location" required placeholder="Contoh: Jakarta Selatan">
+                        </div>
+                        <div class="form-group">
+                            <label for="project-owner">Pemilik Proyek (Owner) *</label>
+                            <input type="text" id="project-owner" required placeholder="Contoh: PT Bangun Persada">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="project-value">Nilai Proyek (Rp) *</label>
+                            <input type="number" id="project-value" required min="1000000" placeholder="Contoh: 750000000">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="project-start">Tanggal Mulai *</label>
+                            <input type="date" id="project-start" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="project-end">Tanggal Selesai (Target) *</label>
+                            <input type="date" id="project-end" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeAddProjectModal()">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan Proyek</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Manager Project Detail Modal -->
+    <div id="project-detail-modal" class="modal-overlay">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <div>
+                    <h3 id="modal-detail-title">Detail Proyek</h3>
+                    <span id="modal-detail-subtitle" class="text-muted">Lokasi - Owner</span>
+                </div>
+                <button class="modal-close-btn" onclick="closeProjectDetailModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-grid">
+                    <!-- Project Stats -->
+                    <div class="detail-info-block">
+                        <div class="info-card-grid">
+                            <div class="info-mini-card">
+                                <span class="info-label">Nilai Proyek</span>
+                                <strong class="info-value" id="detail-val-value">Rp 0</strong>
+                            </div>
+                            <div class="info-mini-card">
+                                <span class="info-label">Jangka Waktu</span>
+                                <strong class="info-value" id="detail-val-dates">01 Jan - 30 Jun</strong>
+                            </div>
+                            <div class="info-mini-card">
+                                <span class="info-label">Rata-rata Progres</span>
+                                <strong class="info-value text-primary" id="detail-val-progress">0%</strong>
+                            </div>
+                        </div>
+
+                        <h4 class="section-title-sub">Timeline & Detail Pekerjaan</h4>
+                        <div class="table-responsive">
+                            <table class="detail-tasks-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nama Pekerjaan</th>
+                                        <th>Volume</th>
+                                        <th>Satuan</th>
+                                        <th>Bobot</th>
+                                        <th>Target Waktu</th>
+                                        <th>Progres</th>
+                                        <th>Status</th>
+                                        <th>Jadwal</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="detail-tasks-body">
+                                    <!-- Generated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Project Photos Gallery -->
+                    <div class="detail-photos-block">
+                        <h4 class="section-title-sub"><i data-lucide="image" class="inline-icon"></i> Galeri Foto Lapangan</h4>
+                        <div class="photos-gallery" id="detail-photos-gallery">
+                            <!-- Generated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; width: 100%;">
+                <button class="btn btn-secondary" id="btn-export-detail" onclick="exportProjectDetailsToCSV()">
+                    <i data-lucide="download"></i> Ekspor Detail (CSV)
+                </button>
+                <button class="btn btn-secondary" onclick="closeProjectDetailModal()">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Script -->
+    <script src="app.js"></script>
+</body>
+</html>
