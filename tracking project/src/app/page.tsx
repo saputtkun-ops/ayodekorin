@@ -42,10 +42,15 @@ interface Task {
   volume: number;
   satuan: string;
   bobot: number;
-  status: 'Belum Dimulai' | 'Berjalan' | 'Selesai' | 'Tertunda';
+  status: 'Belum Dimulai' | 'Berjalan' | 'Selesai' | 'Tertunda' | 'Terlambat';
   progress: number;
   target_days: number;
   current_day: number;
+  start_date?: string; // Target Mulai (YYYY-MM-DD)
+  end_date?: string; // Target Selesai (YYYY-MM-DD)
+  actual_date?: string; // Realisasi Selesai (YYYY-MM-DD)
+  notes?: string; // Catatan Lapangan / Kendala
+  target_tomorrow?: string; // Rencana Besok
 }
 
 interface Photo {
@@ -90,7 +95,7 @@ interface Toast {
 }
 
 // ==========================================================================
-// DEFAULT MOCK DATA
+// DEFAULT MOCK DATA (TRACKING VERSI PELAKSANA - MILESTONE BASED)
 // ==========================================================================
 const DEFAULT_PROJECTS: Project[] = [
   {
@@ -103,20 +108,122 @@ const DEFAULT_PROJECTS: Project[] = [
     end_date: "2026-08-15",
     percentage: 78,
     tasks: [
-      { task_id: "t1-1", task_name: "Persiapan", volume: 1, satuan: "Lump Sum", bobot: 5, status: "Selesai", progress: 100, target_days: 7, current_day: 7 },
-      { task_id: "t1-2", task_name: "Galian Tanah", volume: 45, satuan: "m3", bobot: 5, status: "Selesai", progress: 100, target_days: 10, current_day: 10 },
-      { task_id: "t1-3", task_name: "Pondasi Batu Kali", volume: 38, satuan: "m3", bobot: 15, status: "Selesai", progress: 100, target_days: 14, current_day: 14 },
-      { task_id: "t1-4", task_name: "Sloof Beton 15/20", volume: 4.8, satuan: "m3", bobot: 10, status: "Berjalan", progress: 75, target_days: 14, current_day: 8 },
-      { task_id: "t1-5", task_name: "Kolom Struktur 15/15", volume: 3.2, satuan: "m3", bobot: 10, status: "Berjalan", progress: 50, target_days: 14, current_day: 10 },
-      { task_id: "t1-6", task_name: "Balok Beton 15/20", volume: 4.2, satuan: "m3", bobot: 10, status: "Belum Dimulai", progress: 0, target_days: 14, current_day: 0 },
-      { task_id: "t1-7", task_name: "Plat Lantai Beton", volume: 12.5, satuan: "m3", bobot: 10, status: "Belum Dimulai", progress: 0, target_days: 20, current_day: 0 },
-      { task_id: "t1-8", task_name: "Dinding Bata & Plesteran", volume: 240, satuan: "m2", bobot: 15, status: "Belum Dimulai", progress: 0, target_days: 25, current_day: 0 },
-      { task_id: "t1-9", task_name: "Atap Baja Ringan & Genteng", volume: 110, satuan: "m2", bobot: 15, status: "Belum Dimulai", progress: 0, target_days: 15, current_day: 0 },
-      { task_id: "t1-10", task_name: "Finishing (Keramik & Cat)", volume: 150, satuan: "m2", bobot: 5, status: "Belum Dimulai", progress: 0, target_days: 20, current_day: 0 }
+      { 
+        task_id: "t1-1", 
+        task_name: "Pekerjaan Persiapan & Mobilisasi", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 10, 
+        status: "Selesai", 
+        progress: 100, 
+        target_days: 7, 
+        current_day: 7,
+        start_date: "2026-05-01",
+        end_date: "2026-05-07",
+        actual_date: "2026-05-07",
+        notes: "Tenaga kerja lengkap, mobilisasi alat lancar tanpa hambatan."
+      },
+      { 
+        task_id: "t1-2", 
+        task_name: "Galian Tanah & Pondasi Batu Kali", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 15, 
+        status: "Selesai", 
+        progress: 100, 
+        target_days: 17, 
+        current_day: 17,
+        start_date: "2026-05-08",
+        end_date: "2026-05-24",
+        actual_date: "2026-05-23",
+        notes: "Cuaca sangat cerah mendukung pekerjaan galian, pondasi terpasang kokoh."
+      },
+      { 
+        task_id: "t1-3", 
+        task_name: "Pekerjaan Sloof Beton & Kolom Utama Lt 1", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 15, 
+        status: "Selesai", 
+        progress: 100, 
+        target_days: 17, 
+        current_day: 17,
+        start_date: "2026-05-25",
+        end_date: "2026-06-10",
+        actual_date: "2026-06-10",
+        notes: "Pengecoran sukses menggunakan beton K-225 site-mix standar PU."
+      },
+      { 
+        task_id: "t1-4", 
+        task_name: "Pekerjaan Dinding Bata & Plesteran Lt 1", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 15, 
+        status: "Berjalan", 
+        progress: 80, 
+        target_days: 15, 
+        current_day: 12,
+        start_date: "2026-06-11",
+        end_date: "2026-06-25",
+        notes: "Plesteran dinding sisi dalam selesai, sedang merapikan tali air kusen."
+      },
+      { 
+        task_id: "t1-5", 
+        task_name: "Pengecoran Plat Lantai Dak Lt 2", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 15, 
+        status: "Berjalan", 
+        progress: 40, 
+        target_days: 15, 
+        current_day: 8,
+        start_date: "2026-06-26",
+        end_date: "2026-07-10",
+        notes: "Kendala: Sempat hujan deras siang hari menghambat cor rampung, bekisting aman."
+      },
+      { 
+        task_id: "t1-6", 
+        task_name: "Kolom, Ring Balk & Struktur Lt 2", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 10, 
+        status: "Belum Dimulai", 
+        progress: 0, 
+        target_days: 12, 
+        current_day: 0,
+        start_date: "2026-07-11",
+        end_date: "2026-07-22"
+      },
+      { 
+        task_id: "t1-7", 
+        task_name: "Rangka Atap Baja Ringan & Genteng", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 10, 
+        status: "Belum Dimulai", 
+        progress: 0, 
+        target_days: 12, 
+        current_day: 0,
+        start_date: "2026-07-23",
+        end_date: "2026-08-03"
+      },
+      { 
+        task_id: "t1-8", 
+        task_name: "Finishing & Pengecatan Rumah", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 10, 
+        status: "Belum Dimulai", 
+        progress: 0, 
+        target_days: 12, 
+        current_day: 0,
+        start_date: "2026-08-04",
+        end_date: "2026-08-15"
+      }
     ],
     photos: [
-      { photo_id: "p1-1", task_name: "Pondasi Batu Kali", description: "Pekerjaan pondasi batu kali selesai 100%", date: "2026-05-18", location: "Kebayoran Baru", image_url: "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=400" },
-      { photo_id: "p1-2", task_name: "Sloof Beton 15/20", description: "Pemasangan bekisting sloof area timur selesai", date: "2026-06-24", location: "Kebayoran Baru", image_url: "https://images.unsplash.com/photo-1581094288338-2314dddb7eed?w=400" }
+      { photo_id: "p1-1", task_name: "Galian Tanah & Pondasi Batu Kali", description: "Pekerjaan pondasi batu kali selesai 100%", date: "2026-05-18", location: "Kebayoran Baru", image_url: "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=400" },
+      { photo_id: "p1-2", task_name: "Pengecoran Plat Lantai Dak Lt 2", description: "Pemasangan bekisting sloof area timur selesai", date: "2026-06-24", location: "Kebayoran Baru", image_url: "https://images.unsplash.com/photo-1581094288338-2314dddb7eed?w=400" }
     ],
     history: [
       { week: 1, progress: 10 },
@@ -134,27 +241,110 @@ const DEFAULT_PROJECTS: Project[] = [
     value: 1200000000,
     start_date: "2026-06-01",
     end_date: "2026-11-15",
-    percentage: 45,
+    percentage: 26,
     tasks: [
-      { task_id: "t2-1", task_name: "Persiapan", volume: 1, satuan: "Lump Sum", bobot: 5, status: "Selesai", progress: 100, target_days: 7, current_day: 7 },
-      { task_id: "t2-2", task_name: "Galian Tanah", volume: 90, satuan: "m3", bobot: 5, status: "Selesai", progress: 100, target_days: 12, current_day: 12 },
-      { task_id: "t2-3", task_name: "Pondasi Batu Kali", volume: 75, satuan: "m3", bobot: 15, status: "Berjalan", progress: 80, target_days: 20, current_day: 18 },
-      { task_id: "t2-4", task_name: "Sloof Beton 15/20", volume: 8.5, satuan: "m3", bobot: 10, status: "Berjalan", progress: 30, target_days: 15, current_day: 14 },
-      { task_id: "t2-5", task_name: "Kolom Struktur 15/15", volume: 6.8, satuan: "m3", bobot: 10, status: "Belum Dimulai", progress: 0, target_days: 15, current_day: 0 },
-      { task_id: "t2-6", task_name: "Balok Beton 15/20", volume: 7.2, satuan: "m3", bobot: 10, status: "Belum Dimulai", progress: 0, target_days: 15, current_day: 0 },
-      { task_id: "t2-7", task_name: "Plat Lantai Beton", volume: 22.4, satuan: "m3", bobot: 10, status: "Belum Dimulai", progress: 0, target_days: 25, current_day: 0 },
-      { task_id: "t2-8", task_name: "Dinding Bata & Plesteran", volume: 480, satuan: "m2", bobot: 15, status: "Belum Dimulai", progress: 0, target_days: 30, current_day: 0 },
-      { task_id: "t2-9", task_name: "Atap Baja Ringan & Genteng", volume: 180, satuan: "m2", bobot: 15, status: "Belum Dimulai", progress: 0, target_days: 20, current_day: 0 },
-      { task_id: "t2-10", task_name: "Finishing (Keramik & Cat)", volume: 300, satuan: "m2", bobot: 5, status: "Belum Dimulai", progress: 0, target_days: 25, current_day: 0 }
+      { 
+        task_id: "t2-1", 
+        task_name: "Persiapan, Pembersihan & Bowplank", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 10, 
+        status: "Selesai", 
+        progress: 100, 
+        target_days: 8, 
+        current_day: 8,
+        start_date: "2026-06-01",
+        end_date: "2026-06-08",
+        actual_date: "2026-06-07",
+        notes: "Lahan bersih 100%, bowplank terpasang siku presisi."
+      },
+      { 
+        task_id: "t2-2", 
+        task_name: "Galian Tanah & Fondasi Footplat", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 20, 
+        status: "Berjalan", 
+        progress: 80, 
+        target_days: 20, 
+        current_day: 18,
+        start_date: "2026-06-09",
+        end_date: "2026-06-28",
+        notes: "Sedang perakitan pembesian footplat, galian selesai seluruh titik."
+      },
+      { 
+        task_id: "t2-3", 
+        task_name: "Sloof & Kolom Struktur Lt 1", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 20, 
+        status: "Belum Dimulai", 
+        progress: 0, 
+        target_days: 20, 
+        current_day: 0,
+        start_date: "2026-06-29",
+        end_date: "2026-07-18"
+      },
+      { 
+        task_id: "t2-4", 
+        task_name: "Plat Lantai 2 & Balok Beton Lt 1", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 15, 
+        status: "Belum Dimulai", 
+        progress: 0, 
+        target_days: 20, 
+        current_day: 0,
+        start_date: "2026-07-19",
+        end_date: "2026-08-07"
+      },
+      { 
+        task_id: "t2-5", 
+        task_name: "Dinding Bata & Plesteran Lt 1 & 2", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 15, 
+        status: "Belum Dimulai", 
+        progress: 0, 
+        target_days: 34, 
+        current_day: 0,
+        start_date: "2026-08-08",
+        end_date: "2026-09-10"
+      },
+      { 
+        task_id: "t2-6", 
+        task_name: "Pekerjaan Atap & Penutup Ruko", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 10, 
+        status: "Belum Dimulai", 
+        progress: 0, 
+        target_days: 25, 
+        current_day: 0,
+        start_date: "2026-09-11",
+        end_date: "2026-10-05"
+      },
+      { 
+        task_id: "t2-7", 
+        task_name: "Finishing (Keramik, Cat & Fasad)", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 10, 
+        status: "Belum Dimulai", 
+        progress: 0, 
+        target_days: 41, 
+        current_day: 0,
+        start_date: "2026-10-06",
+        end_date: "2026-11-15"
+      }
     ],
     photos: [
-      { photo_id: "p2-1", task_name: "Galian Tanah", description: "Pekerjaan galian struktur ruko selesai", date: "2026-06-10", location: "Kebayoran Lama", image_url: "https://images.unsplash.com/photo-1590069261209-f8e9b8642343?w=400" }
+      { photo_id: "p2-1", task_name: "Galian Tanah & Fondasi Footplat", description: "Pekerjaan galian struktur ruko selesai", date: "2026-06-10", location: "Kebayoran Lama", image_url: "https://images.unsplash.com/photo-1590069261209-f8e9b8642343?w=400" }
     ],
     history: [
       { week: 1, progress: 5 },
       { week: 2, progress: 15 },
-      { week: 3, progress: 30 },
-      { week: 4, progress: 45 }
+      { week: 3, progress: 26 }
     ]
   },
   {
@@ -167,19 +357,83 @@ const DEFAULT_PROJECTS: Project[] = [
     end_date: "2026-07-15",
     percentage: 90,
     tasks: [
-      { task_id: "t3-1", task_name: "Persiapan", volume: 1, satuan: "Lump Sum", bobot: 5, status: "Selesai", progress: 100, target_days: 5, current_day: 5 },
-      { task_id: "t3-2", task_name: "Galian Tanah", volume: 10, satuan: "m3", bobot: 5, status: "Selesai", progress: 100, target_days: 5, current_day: 5 },
-      { task_id: "t3-3", task_name: "Pondasi Batu Kali", volume: 12, satuan: "m3", bobot: 15, status: "Selesai", progress: 100, target_days: 10, current_day: 10 },
-      { task_id: "t3-4", task_name: "Sloof Beton 15/20", volume: 2.5, satuan: "m3", bobot: 10, status: "Selesai", progress: 100, target_days: 10, current_day: 10 },
-      { task_id: "t3-5", task_name: "Kolom Struktur 15/15", volume: 1.8, satuan: "m3", bobot: 10, status: "Selesai", progress: 100, target_days: 10, current_day: 10 },
-      { task_id: "t3-6", task_name: "Balok Beton 15/20", volume: 2.2, satuan: "m3", bobot: 10, status: "Selesai", progress: 100, target_days: 10, current_day: 10 },
-      { task_id: "t3-7", task_name: "Plat Lantai Beton", volume: 6.5, satuan: "m3", bobot: 10, status: "Selesai", progress: 100, target_days: 12, current_day: 12 },
-      { task_id: "t3-8", task_name: "Dinding Bata & Plesteran", volume: 120, satuan: "m2", bobot: 15, status: "Selesai", progress: 100, target_days: 15, current_day: 15 },
-      { task_id: "t3-9", task_name: "Atap Baja Ringan & Genteng", volume: 60, satuan: "m2", bobot: 15, status: "Selesai", progress: 100, target_days: 12, current_day: 12 },
-      { task_id: "t3-10", task_name: "Finishing (Keramik & Cat)", volume: 80, satuan: "m2", bobot: 5, status: "Berjalan", progress: 0, target_days: 15, current_day: 2 }
+      { 
+        task_id: "t3-1", 
+        task_name: "Pembongkaran & Pembersihan Interior", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 15, 
+        status: "Selesai", 
+        progress: 100, 
+        target_days: 8, 
+        current_day: 8,
+        start_date: "2026-04-15",
+        end_date: "2026-04-22",
+        actual_date: "2026-04-21",
+        notes: "Pembongkaran sekat gypsum lama dan pembuangan puing tuntas."
+      },
+      { 
+        task_id: "t3-2", 
+        task_name: "Instalasi Jalur Elektrikal & AC", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 20, 
+        status: "Selesai", 
+        progress: 100, 
+        target_days: 23, 
+        current_day: 23,
+        start_date: "2026-04-23",
+        end_date: "2026-05-15",
+        actual_date: "2026-05-15",
+        notes: "Kabel conduits, MCB pembagi, dan pipa AC tembaga terpasang rapi."
+      },
+      { 
+        task_id: "t3-3", 
+        task_name: "Pemasangan Dinding Partisi Gypsum", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 25, 
+        status: "Selesai", 
+        progress: 100, 
+        target_days: 21, 
+        current_day: 21,
+        start_date: "2026-05-16",
+        end_date: "2026-06-05",
+        actual_date: "2026-06-04",
+        notes: "Dinding partisi double-sided rapi, sambungan tertutup compound."
+      },
+      { 
+        task_id: "t3-4", 
+        task_name: "Pemasangan Plafon Acoustic Board", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 20, 
+        status: "Selesai", 
+        progress: 100, 
+        target_days: 15, 
+        current_day: 15,
+        start_date: "2026-06-06",
+        end_date: "2026-06-20",
+        actual_date: "2026-06-20",
+        notes: "Main tee dan cross tee lurus, panel akustik 60x60 terpasang presisi."
+      },
+      { 
+        task_id: "t3-5", 
+        task_name: "Pekerjaan Finishing (Vinyl & Cat)", 
+        volume: 1, 
+        satuan: "Lump Sum", 
+        bobot: 20, 
+        status: "Berjalan", 
+        progress: 50, 
+        target_days: 25, 
+        current_day: 6,
+        start_date: "2026-06-21",
+        end_date: "2026-07-15",
+        notes: "Sedang pengerjaan self-leveling lantai sebelum lem lembaran vinyl."
+      }
     ],
     photos: [
-      { photo_id: "p3-1", task_name: "Dinding Bata", description: "Plesteran dinding lantai 2", date: "2026-06-05", location: "Thamrin", image_url: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400" }
+      { photo_id: "p3-1", task_name: "Pemasangan Dinding Partisi Gypsum", description: "Plesteran dinding lantai 2 selesai", date: "2026-06-05", location: "Thamrin", image_url: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400" }
     ],
     history: [
       { week: 1, progress: 15 },
@@ -193,9 +447,9 @@ const DEFAULT_PROJECTS: Project[] = [
 ];
 
 const DEFAULT_NOTIFICATIONS: Notification[] = [
-  { id: "n-1", type: "alert-delayed", message: "Pekerjaan Sloof di proyek Pembangunan Ruko 2 Lantai B terindikasi terlambat (Behind Schedule)!", time: "2 jam yang lalu" },
-  { id: "n-2", type: "alert-photo", message: "Pelaksana mengunggah foto baru untuk pekerjaan Sloof di Rumah Tinggal Modern A.", time: "4 jam yang lalu" },
-  { id: "n-3", type: "alert-progress", message: "Kemajuan progres rata-rata Renovasi Kantor PT C mencapai 90%.", time: "1 hari yang lalu" }
+  { id: "n-1", type: "alert-delayed", message: "Milestone *Galian Tanah & Fondasi Footplat* di proyek Pembangunan Ruko 2 Lantai B terindikasi terlambat!", time: "2 jam yang lalu" },
+  { id: "n-2", type: "alert-photo", message: "Pelaksana mengunggah foto baru untuk milestone *Pengecoran Plat Lantai Dak Lt 2* di Rumah Tinggal Modern A.", time: "4 jam yang lalu" },
+  { id: "n-3", type: "alert-progress", message: "Kemajuan progres fisik Renovasi Kantor PT C mencapai 90%.", time: "1 hari yang lalu" }
 ];
 
 export default function Home() {
@@ -236,6 +490,22 @@ export default function Home() {
   const [newTaskSatuan, setNewTaskSatuan] = useState('');
   const [newTaskBobot, setNewTaskBobot] = useState('');
   const [newTaskTargetDays, setNewTaskTargetDays] = useState('');
+  const [newTaskStart, setNewTaskStart] = useState('');
+  const [newTaskEnd, setNewTaskEnd] = useState('');
+
+  // Auto-calculate target days from start and end dates
+  useEffect(() => {
+    if (newTaskStart && newTaskEnd) {
+      const start = new Date(newTaskStart);
+      const end = new Date(newTaskEnd);
+      if (end >= start) {
+        const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        setNewTaskTargetDays(diff.toString());
+      } else {
+        setNewTaskTargetDays('');
+      }
+    }
+  }, [newTaskStart, newTaskEnd]);
 
   // Mobile Simulator state
   const [mobileScreen, setMobileScreen] = useState<'project-list' | 'project-detail' | 'task-edit'>('project-list');
@@ -309,23 +579,121 @@ export default function Home() {
     let weightedProgress = 0;
     projectTasks.forEach(t => {
       totalWeight += t.bobot;
-      weightedProgress += (t.progress * t.bobot) / 100;
+      weightedProgress += (t.progress * t.bobot);
     });
-    return Math.round(weightedProgress);
+    if (totalWeight === 0) return 0;
+    return Math.round(weightedProgress / totalWeight);
+  };
+
+  const getMilestoneScheduleInfo = (
+    startDateStr?: string,
+    endDateStr?: string,
+    progress: number = 0,
+    status: string = 'Belum Dimulai',
+    actualDateStr?: string
+  ) => {
+    if (!startDateStr || !endDateStr) {
+      return {
+        statusText: 'Sesuai Jadwal',
+        deviationText: 'Tepat Waktu',
+        badgeColor: 'bg-blue-50 text-blue-600',
+        deviationColor: 'text-slate-400'
+      };
+    }
+
+    const start = new Date(startDateStr);
+    const end = new Date(endDateStr);
+    const today = new Date(); // Dynamic current local date
+
+    const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    
+    if (status === 'Selesai' || progress === 100) {
+      if (actualDateStr) {
+        const actualEnd = new Date(actualDateStr);
+        const diffDays = Math.ceil((actualEnd.getTime() - end.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays <= 0) {
+          return {
+            statusText: 'Selesai',
+            deviationText: diffDays === 0 ? 'Tepat Waktu' : `Lebih Cepat ${Math.abs(diffDays)} Hari`,
+            badgeColor: 'bg-emerald-50 text-emerald-600',
+            deviationColor: 'text-emerald-600 font-semibold'
+          };
+        } else {
+          return {
+            statusText: 'Terlambat Selesai',
+            deviationText: `Terlambat ${diffDays} Hari`,
+            badgeColor: 'bg-red-50 text-red-600',
+            deviationColor: 'text-red-500 font-semibold'
+          };
+        }
+      }
+      return {
+        statusText: 'Selesai',
+        deviationText: 'Selesai',
+        badgeColor: 'bg-emerald-50 text-emerald-600',
+        deviationColor: 'text-emerald-600 font-semibold'
+      };
+    }
+
+    if (today < start) {
+      return {
+        statusText: 'Belum Mulai',
+        deviationText: 'Belum Dimulai',
+        badgeColor: 'bg-slate-100 text-slate-500',
+        deviationColor: 'text-slate-400'
+      };
+    }
+
+    // Milestone is active (today is between start and end, or past end but not completed)
+    const elapsedDays = Math.ceil((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (today > end) {
+      const delayDays = Math.ceil((today.getTime() - end.getTime()) / (1000 * 60 * 60 * 24));
+      return {
+        statusText: 'Terlambat',
+        deviationText: `Terlambat ${delayDays} Hari`,
+        badgeColor: 'bg-red-50 text-red-600',
+        deviationColor: 'text-red-600 font-bold'
+      };
+    }
+
+    const expectedProgress = (elapsedDays / totalDays) * 100;
+    const deviationProgress = progress - expectedProgress;
+
+    const expectedDaysEarned = (progress / 100) * totalDays;
+    const deviationDays = Math.round(elapsedDays - expectedDaysEarned);
+
+    if (deviationProgress >= 5) {
+      return {
+        statusText: 'Lebih Cepat',
+        deviationText: `Lebih Cepat ${Math.abs(deviationDays)} Hari`,
+        badgeColor: 'bg-emerald-50 text-emerald-600',
+        deviationColor: 'text-emerald-600 font-semibold'
+      };
+    } else if (deviationProgress < -8) {
+      return {
+        statusText: 'Terlambat',
+        deviationText: `Terlambat ${deviationDays} Hari`,
+        badgeColor: 'bg-red-50 text-red-600',
+        deviationColor: 'text-red-500 font-semibold'
+      };
+    } else {
+      return {
+        statusText: 'Sesuai Jadwal',
+        deviationText: 'Tepat Waktu',
+        badgeColor: 'bg-blue-50 text-blue-600',
+        deviationColor: 'text-blue-500'
+      };
+    }
   };
 
   const getScheduleStatus = (targetDays: number, currentDay: number, progress: number): 'Ahead Schedule' | 'On Schedule' | 'Behind Schedule' => {
     if (progress === 100) return 'On Schedule';
     if (currentDay === 0) return 'On Schedule';
-
     const expectedProgress = (currentDay / targetDays) * 100;
-    if (progress >= expectedProgress + 5) {
-      return 'Ahead Schedule';
-    } else if (progress < expectedProgress - 8) {
-      return 'Behind Schedule';
-    } else {
-      return 'On Schedule';
-    }
+    if (progress >= expectedProgress + 5) return 'Ahead Schedule';
+    if (progress < expectedProgress - 8) return 'Behind Schedule';
+    return 'On Schedule';
   };
 
   const formatCurrency = (val: number): string => {
@@ -354,11 +722,9 @@ export default function Home() {
   projects.forEach(p => {
     let hasDelayedTask = false;
     p.tasks.forEach(t => {
-      if (t.status === 'Berjalan' || t.status === 'Tertunda') {
-        const scheduleStatus = getScheduleStatus(t.target_days, t.current_day, t.progress);
-        if (scheduleStatus === 'Behind Schedule') {
-          hasDelayedTask = true;
-        }
+      const sched = getMilestoneScheduleInfo(t.start_date, t.end_date, t.progress, t.status, t.actual_date);
+      if (sched.statusText.includes('Terlambat')) {
+        hasDelayedTask = true;
       }
     });
     if (hasDelayedTask && p.percentage < 100) {
@@ -557,8 +923,8 @@ export default function Home() {
   };
 
   const handleAddTask = (projectId: string) => {
-    if (!newTaskName || !newTaskVolume || !newTaskSatuan || !newTaskBobot || !newTaskTargetDays) {
-      triggerToast("Mohon isi seluruh kolom data pekerjaan", "error");
+    if (!newTaskName || !newTaskVolume || !newTaskSatuan || !newTaskBobot || !newTaskTargetDays || !newTaskStart || !newTaskEnd) {
+      triggerToast("Mohon isi seluruh kolom data pekerjaan (termasuk jadwal target)", "error");
       return;
     }
 
@@ -582,7 +948,9 @@ export default function Home() {
           status: 'Belum Dimulai',
           progress: 0,
           target_days: taskTarget,
-          current_day: 0
+          current_day: 0,
+          start_date: newTaskStart,
+          end_date: newTaskEnd
         };
 
         const nextTasks = [...p.tasks, newTask];
@@ -601,7 +969,7 @@ export default function Home() {
       {
         id: "notif-addtask-" + Date.now(),
         type: "alert-info" as const,
-        message: `Pekerjaan baru *${newTaskName}* ditambahkan ke proyek *${editProjName}*`,
+        message: `Milestone baru *${newTaskName}* ditambahkan ke proyek *${editProjName}*`,
         time: "Baru saja"
       },
       ...notifications
@@ -615,9 +983,11 @@ export default function Home() {
     setNewTaskSatuan('');
     setNewTaskBobot('');
     setNewTaskTargetDays('');
+    setNewTaskStart('');
+    setNewTaskEnd('');
     setIsAddingTask(false);
 
-    triggerToast(`Pekerjaan ${newTaskName} berhasil ditambahkan`, "success");
+    triggerToast(`Milestone ${newTaskName} berhasil ditambahkan`, "success");
   };
 
   const handleDeleteTask = (projectId: string, taskId: string, taskName: string) => {
@@ -639,14 +1009,57 @@ export default function Home() {
       {
         id: "notif-deltask-" + Date.now(),
         type: "alert-delayed" as const,
-        message: `Pekerjaan *${taskName}* dihapus dari proyek *${editProjName}*`,
+        message: `Milestone *${taskName}* dihapus dari proyek *${editProjName}*`,
         time: "Baru saja"
       },
       ...notifications
     ];
 
     saveState(updatedProjects, updatedNotifications);
-    triggerToast(`Pekerjaan ${taskName} berhasil dihapus`, "success");
+    triggerToast(`Milestone ${taskName} berhasil dihapus`, "success");
+  };
+
+  const handleEqualizeWeights = (projectId: string) => {
+    const updatedProjects = projects.map(p => {
+      if (p.project_id === projectId) {
+        if (p.tasks.length === 0) return p;
+        const equalWeight = parseFloat((100 / p.tasks.length).toFixed(2));
+        const updatedTasks = p.tasks.map(t => ({
+          ...t,
+          bobot: equalWeight
+        }));
+
+        // Adjust last task so the sum is exactly 100
+        let sum = 0;
+        for (let i = 0; i < updatedTasks.length - 1; i++) {
+          sum += updatedTasks[i].bobot;
+        }
+        if (updatedTasks.length > 0) {
+          updatedTasks[updatedTasks.length - 1].bobot = parseFloat((100 - sum).toFixed(2));
+        }
+
+        const nextPercentage = calculateWeightedProjectPercentage(updatedTasks);
+        return {
+          ...p,
+          tasks: updatedTasks,
+          percentage: nextPercentage
+        };
+      }
+      return p;
+    });
+
+    const updatedNotifications = [
+      {
+        id: "notif-equalize-" + Date.now(),
+        type: "alert-info" as const,
+        message: `Bobot milestone untuk proyek *${editProjName || 'ini'}* diratakan secara merata`,
+        time: "Baru saja"
+      },
+      ...notifications
+    ];
+
+    saveState(updatedProjects, updatedNotifications);
+    triggerToast("Bobot pekerjaan berhasil dibagi rata", "success");
   };
 
   // ==========================================================================
@@ -665,8 +1078,8 @@ export default function Home() {
       setEditStatus(task.status);
       setEditCurrentDay(task.current_day || 1);
       setEditPhotoData(null);
-      setEditPhotoDesc('');
-      setEditTargetTomorrow('');
+      setEditPhotoDesc(task.notes || '');
+      setEditTargetTomorrow(task.target_tomorrow || '');
       setMobileScreen('task-edit');
     }
   };
@@ -725,14 +1138,25 @@ export default function Home() {
   const generateWhatsAppReport = (project: Project, task: Task): string => {
     const currentDate = new Date();
     const formattedDate = currentDate.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+    const sched = getMilestoneScheduleInfo(task.start_date, task.end_date, editProgress, editStatus, task.actual_date);
 
-    return `*PROGRESS HARIAN*
+    return `*LAPORAN TRACKING MILESTONE (VERSI PELAKSANA)*
+---------------------------------------------
 *Proyek:* ${project.project_name}
-*Tanggal:* ${formattedDate}
-*Pekerjaan:* ${task.task_name}
-*Progress:* ${editProgress}%
-*Keterangan:* ${editPhotoDesc || "-"}
-*Target Besok:* ${editTargetTomorrow || "-"}`;
+*Tanggal Laporan:* ${formattedDate}
+
+*Milestone / Target:* ${task.task_name}
+*Target Periode:* ${task.start_date ? formatDateShort(task.start_date) : '-'} s/d ${task.end_date ? formatDateShort(task.end_date) : '-'}
+*Progres Fisik Aktual:* ${editProgress}%
+*Status Target:* ${editStatus} (${sched.statusText} - ${sched.deviationText})
+
+*Catatan & Kendala Lapangan:*
+${editPhotoDesc || "Lancar, tidak ada kendala berarti."}
+
+*Rencana Kerja Besok:*
+${editTargetTomorrow || "Melanjutkan target milestone berjalan."}
+---------------------------------------------
+_Dikirim via Saputt Project Tracking Dashboard_`;
   };
 
   const copyReport = (project: Project, task: Task) => {
@@ -751,19 +1175,21 @@ export default function Home() {
   };
 
   const handleSaveMobileTask = (project: Project, task: Task) => {
-    // 1. Update task values
     const oldProgress = task.progress;
     
     const updatedProjects = projects.map(p => {
       if (p.project_id === project.project_id) {
-        // Update specific task
         const updatedTasks = p.tasks.map(t => {
           if (t.task_id === task.task_id) {
+            const isCompleted = editProgress === 100 || editStatus === 'Selesai';
             return {
               ...t,
               progress: editProgress,
               status: editStatus,
-              current_day: editCurrentDay
+              current_day: editCurrentDay,
+              notes: editPhotoDesc, // Save daily log/notes
+              target_tomorrow: editTargetTomorrow,
+              actual_date: isCompleted ? (t.actual_date || new Date().toISOString().split("T")[0]) : t.actual_date
             };
           }
           return t;
@@ -783,10 +1209,8 @@ export default function Home() {
           updatedPhotos = [newPhoto, ...updatedPhotos];
         }
 
-        // Calculate overall percentage
         const nextPercentage = calculateWeightedProjectPercentage(updatedTasks);
 
-        // Update history if progress changed
         let updatedHistory = [...p.history];
         if (editProgress > oldProgress) {
           const lastHistory = updatedHistory[updatedHistory.length - 1];
@@ -811,7 +1235,6 @@ export default function Home() {
       return p;
     });
 
-    // 2. Add Manager notifications
     const newNotifications = [...notifications];
     newNotifications.unshift({
       id: "notif-prog-" + Date.now(),
@@ -820,12 +1243,12 @@ export default function Home() {
       time: "Baru saja"
     });
 
-    const scheduleStatus = getScheduleStatus(task.target_days, editCurrentDay, editProgress);
-    if (scheduleStatus === 'Behind Schedule' && editStatus !== 'Selesai') {
+    const sched = getMilestoneScheduleInfo(task.start_date, task.end_date, editProgress, editStatus, task.actual_date);
+    if (sched.statusText === 'Terlambat' && editStatus !== 'Selesai') {
       newNotifications.unshift({
         id: "notif-warn-" + Date.now(),
         type: "alert-delayed",
-        message: `[Peringatan] Pekerjaan *${task.task_name}* di proyek *${project.project_name}* terdeteksi terlambat (Behind Schedule)!`,
+        message: `[Peringatan] Milestone *${task.task_name}* di *${project.project_name}* terdeteksi terlambat (${sched.deviationText})!`,
         time: "Baru saja"
       });
     }
@@ -833,9 +1256,8 @@ export default function Home() {
     if (newNotifications.length > 10) newNotifications.pop();
 
     saveState(updatedProjects, newNotifications);
-    triggerToast("Progres pekerjaan berhasil disimpan", "success");
+    triggerToast("Progres milestone berhasil disimpan", "success");
     
-    // Go back to project timeline
     setMobileScreen('project-detail');
     setMobileSelectedTaskId(null);
     setEditPhotoData(null);
@@ -1435,9 +1857,9 @@ export default function Home() {
                         </p>
                       </div>
 
-                      {/* Timeline List */}
+                      {/* Timeline List (Milestone-based) */}
                       <div className="flex flex-col gap-2.5">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Timeline Pekerjaan Konstruksi</span>
+                        <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Target Pekerjaan (Milestone)</span>
                         {project.tasks.map(t => {
                           const statusClass = 
                             t.status === 'Selesai' ? 'bg-emerald-500' :
@@ -1449,19 +1871,24 @@ export default function Home() {
                             t.status === 'Berjalan' ? 'bg-amber-50 text-amber-600' :
                             t.status === 'Tertunda' ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-500';
 
+                          const sched = getMilestoneScheduleInfo(t.start_date, t.end_date, t.progress, t.status, t.actual_date);
+
                           return (
                             <div
                               key={t.task_id}
                               onClick={() => selectMobileTask(t.task_id, project)}
-                              className="bg-white border border-slate-200/80 rounded-xl p-3 flex justify-between items-center cursor-pointer hover:border-secondary hover:translate-x-1 transition-all"
+                              className="bg-white border border-slate-200/80 rounded-xl p-3 flex flex-col gap-2 cursor-pointer hover:border-secondary hover:translate-x-1 transition-all"
                             >
-                              <div className="flex items-center gap-2.5">
-                                <span className={`w-2.5 h-2.5 rounded-full ${statusClass}`}></span>
-                                <span className="font-bold text-slate-700 text-[11px]">{t.task_name}</span>
+                              <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                  <span className={`w-2 h-2 rounded-full ${statusClass}`}></span>
+                                  <span className="font-bold text-slate-800 text-[11px] leading-tight">{t.task_name}</span>
+                                </div>
+                                <span className="text-[10px] font-extrabold text-slate-700">{t.progress}%</span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${badgeClass}`}>{t.status}</span>
-                                <span className="text-[11px] font-extrabold text-slate-600 w-8 text-right">{t.progress}%</span>
+                              <div className="flex justify-between items-center text-[9px] text-slate-400 font-medium">
+                                <span>Target: {t.start_date ? formatDateShort(t.start_date) : '-'} - {t.end_date ? formatDateShort(t.end_date) : '-'}</span>
+                                <span className={`font-bold px-1.5 py-0.5 rounded ${sched.badgeColor}`}>{sched.statusText}</span>
                               </div>
                             </div>
                           );
@@ -1477,33 +1904,34 @@ export default function Home() {
                   const task = project?.tasks.find(t => t.task_id === mobileSelectedTaskId);
                   if (!project || !task) return null;
 
-                  const scheduleStatus = getScheduleStatus(task.target_days, editCurrentDay, editProgress);
+                  // Dynamic live schedule evaluation on the fly!
+                  const schedLive = getMilestoneScheduleInfo(task.start_date, task.end_date, editProgress, editStatus, task.actual_date);
 
                   return (
                     <div className="flex flex-col gap-4 animate-fadeIn">
                       {/* Task Detail Card */}
-                      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-col gap-4">
+                      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-col gap-4 shadow-sm">
                         <div className="border-b border-slate-100 pb-3">
                           <h3 className="font-extrabold text-slate-800 text-sm leading-snug">{task.task_name}</h3>
                           <div className="grid grid-cols-3 gap-2 mt-2">
                             <div className="bg-slate-50 rounded p-1.5 flex flex-col items-center">
-                              <span className="text-[8px] text-slate-400 uppercase">Volume</span>
+                              <span className="text-[8px] text-slate-400 uppercase">Target Vol</span>
                               <span className="text-[10px] font-bold text-primary">{task.volume} {task.satuan}</span>
                             </div>
                             <div className="bg-slate-50 rounded p-1.5 flex flex-col items-center">
-                              <span className="text-[8px] text-slate-400 uppercase">Bobot</span>
-                              <span className="text-[10px] font-bold text-primary">{task.bobot}%</span>
+                              <span className="text-[8px] text-slate-400 uppercase">Bobot Proyek</span>
+                              <span className="text-[10px] font-bold text-primary">{task.bobot.toFixed(1)}%</span>
                             </div>
                             <div className="bg-slate-50 rounded p-1.5 flex flex-col items-center">
-                              <span className="text-[8px] text-slate-400 uppercase">Target</span>
-                              <span className="text-[10px] font-bold text-primary">{task.target_days} H</span>
+                              <span className="text-[8px] text-slate-400 uppercase">Durasi Rencana</span>
+                              <span className="text-[10px] font-bold text-primary">{task.target_days} Hari</span>
                             </div>
                           </div>
                         </div>
 
                         {/* Slider Progress */}
                         <div className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-bold text-slate-500">Persentase Progres Aktual</label>
+                          <label className="text-[10px] font-bold text-slate-500">Persentase Progres Fisik</label>
                           <div className="flex items-center gap-3">
                             <input
                               type="range"
@@ -1519,7 +1947,7 @@ export default function Home() {
 
                         {/* Status Select */}
                         <div className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-bold text-slate-500">Status Pekerjaan</label>
+                          <label className="text-[10px] font-bold text-slate-500">Status Target Milestone</label>
                           <select
                             value={editStatus}
                             onChange={(e) => handleStatusChange(e.target.value as Task['status'])}
@@ -1534,7 +1962,7 @@ export default function Home() {
 
                         {/* Timeline Current Day */}
                         <div className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-bold text-slate-500">Hari Pengerjaan Saat Ini</label>
+                          <label className="text-[10px] font-bold text-slate-500">Hari Pengerjaan Lapangan (Saat Ini)</label>
                           <div className="flex items-center gap-2">
                             <input
                               type="number"
@@ -1548,18 +1976,17 @@ export default function Home() {
                           </div>
                         </div>
 
-                        {/* Schedule evaluation */}
-                        <div className="bg-slate-50 rounded-lg border border-slate-100 p-2 flex justify-between items-center">
-                          <span className="text-[10px] text-slate-400 font-medium">Status Jadwal Rencana:</span>
-                          <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
-                            scheduleStatus === 'Ahead Schedule' ? 'bg-emerald-50 text-emerald-600' :
-                            scheduleStatus === 'On Schedule' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'
-                          }`}>{scheduleStatus}</span>
+                        {/* Schedule evaluation (LIVE UPDATE) */}
+                        <div className="bg-slate-50 rounded-lg border border-slate-100 p-2.5 flex justify-between items-center">
+                          <span className="text-[10px] text-slate-500 font-semibold">Live Deviasi Jadwal:</span>
+                          <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${schedLive.badgeColor}`}>
+                            {schedLive.statusText} • {schedLive.deviationText}
+                          </span>
                         </div>
 
                         {/* Simulated Photo Upload */}
                         <div className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-bold text-slate-500">Dokumentasi Lapangan</label>
+                          <label className="text-[10px] font-bold text-slate-500">Dokumentasi Progres Fisik (Foto)</label>
                           <div
                             onClick={triggerSimulatedUpload}
                             className="border-2 border-dashed border-slate-200 bg-slate-50 hover:bg-slate-100/50 rounded-xl p-4 flex flex-col items-center justify-center gap-1.5 cursor-pointer relative overflow-hidden min-h-[90px]"
@@ -1582,27 +2009,27 @@ export default function Home() {
                           </div>
                         </div>
 
-                        {/* Photo Caption */}
+                        {/* Photo Caption / Notes */}
                         <div className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-bold text-slate-500">Catatan Harian Lapangan</label>
+                          <label className="text-[10px] font-bold text-slate-500">Catatan Harian Lapangan / Kendala</label>
                           <textarea
                             rows={2}
                             value={editPhotoDesc}
                             onChange={(e) => setEditPhotoDesc(e.target.value)}
-                            placeholder="Contoh: Pemasangan bekisting rampung..."
-                            className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none"
+                            placeholder="Contoh: Pengecoran berjalan lancar, kendala cuaca hujan rintik di sore hari..."
+                            className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-secondary focus:border-secondary"
                           />
                         </div>
 
                         {/* Target Tomorrow */}
                         <div className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-bold text-slate-500">Target Pekerjaan Besok</label>
+                          <label className="text-[10px] font-bold text-slate-500">Rencana Kerja Besok</label>
                           <input
                             type="text"
                             value={editTargetTomorrow}
                             onChange={(e) => setEditTargetTomorrow(e.target.value)}
-                            placeholder="Contoh: Pengecoran sloof..."
-                            className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none"
+                            placeholder="Contoh: Bongkar bekisting dan lanjut plesteran dinding..."
+                            className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-secondary focus:border-secondary"
                           />
                         </div>
 
@@ -1612,17 +2039,17 @@ export default function Home() {
                           className="w-full flex items-center justify-center gap-2 py-2.5 bg-secondary text-white rounded-xl text-xs font-bold hover:bg-orange-600 shadow-sm transition-all mt-2"
                         >
                           <Save className="w-4 h-4" />
-                          Simpan Progres Harian
+                          Simpan Progres Lapangan
                         </button>
                       </div>
 
                       {/* Share Progress Widget */}
-                      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-col gap-3">
+                      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-col gap-3 shadow-sm">
                         <span className="text-[10px] font-bold text-primary flex items-center gap-1.5 uppercase border-b border-slate-50 pb-2">
                           <Share2 className="w-3.5 h-3.5 text-secondary" />
-                          Share Progress WhatsApp
+                          Kirim Progres WhatsApp (Pelaksana)
                         </span>
-                        <div className="bg-slate-50 border border-slate-200/60 rounded-lg p-2.5 font-mono text-[9px] text-slate-600 white-space-pre-wrap max-h-[120px] overflow-y-auto leading-relaxed">
+                        <div className="bg-slate-50 border border-slate-200/60 rounded-lg p-2.5 font-mono text-[9px] text-slate-600 white-space-pre-wrap max-h-[140px] overflow-y-auto leading-relaxed">
                           {generateWhatsAppReport(project, task)}
                         </div>
                         <div className="grid grid-cols-2 gap-2.5">
@@ -1631,7 +2058,7 @@ export default function Home() {
                             className="flex items-center justify-center gap-1.5 py-2 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 transition-all"
                           >
                             <Copy className="w-3.5 h-3.5" />
-                            Salin
+                            Salin Laporan
                           </button>
                           <button
                             onClick={() => shareReportWhatsApp(project, task)}
@@ -1925,63 +2352,72 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Timeline Section */}
+                {/* Timeline Section (Milestone-based) */}
                 <div className="flex flex-col gap-3">
                   <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                    <h4 className="text-xs font-bold text-primary uppercase tracking-wider border-b-2 border-secondary pb-1 self-start">
-                      Timeline & Rincian Progres
-                    </h4>
+                    <div>
+                      <h4 className="text-xs font-bold text-primary uppercase tracking-wider border-b-2 border-secondary pb-1 self-start">
+                        Target Pekerjaan (Milestone)
+                      </h4>
+                      <p className="text-[10px] text-slate-400 mt-1 font-medium">Tracking performa harian lapangan versi pelaksana tanpa RAB.</p>
+                    </div>
                     {!isAddingTask && (
                       <button
-                        onClick={() => setIsAddingTask(true)}
+                        onClick={() => {
+                          setNewTaskVolume('1');
+                          setNewTaskSatuan('Lump Sum');
+                          setNewTaskStart('');
+                          setNewTaskEnd('');
+                          setNewTaskBobot('');
+                          setNewTaskTargetDays('');
+                          setIsAddingTask(true);
+                        }}
                         className="flex items-center gap-1 px-3 py-1 bg-secondary text-white rounded-lg text-[10px] font-bold hover:bg-orange-600 transition-all shadow-sm"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        Tambah Pekerjaan
+                        Tambah Milestone
                       </button>
                     )}
                   </div>
 
-                  {/* Inline Add Task Form */}
+                  {/* Inline Add Milestone Form */}
                   {isAddingTask && (
                     <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3 animate-fadeIn">
-                      <span className="text-[10px] font-bold text-primary uppercase">Tambah Item Pekerjaan Baru</span>
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      <span className="text-[10px] font-bold text-primary uppercase">Tambah Milestone / Target Baru</span>
+                      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                         <div className="flex flex-col gap-1 col-span-2">
-                          <span className="text-[9px] text-slate-400 font-bold uppercase">Nama Pekerjaan</span>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase">Nama Milestone</span>
                           <input
                             type="text"
                             value={newTaskName}
                             onChange={(e) => setNewTaskName(e.target.value)}
-                            placeholder="Contoh: Pekerjaan Sloof"
+                            placeholder="Contoh: Pekerjaan Pondasi"
+                            className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-none focus:ring-1 focus:ring-secondary focus:border-secondary"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[9px] text-slate-400 font-bold uppercase">Target Mulai</span>
+                          <input
+                            type="date"
+                            value={newTaskStart}
+                            onChange={(e) => setNewTaskStart(e.target.value)}
                             className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-none"
                           />
                         </div>
                         <div className="flex flex-col gap-1">
-                          <span className="text-[9px] text-slate-400 font-bold uppercase">Volume</span>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase">Target Selesai</span>
+                          <input
+                            type="date"
+                            value={newTaskEnd}
+                            onChange={(e) => setNewTaskEnd(e.target.value)}
+                            className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-none"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[9px] text-slate-400 font-bold uppercase">Bobot Target (%)</span>
                           <input
                             type="number"
-                            value={newTaskVolume}
-                            onChange={(e) => setNewTaskVolume(e.target.value)}
-                            placeholder="Volume"
-                            className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-none"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[9px] text-slate-400 font-bold uppercase">Satuan</span>
-                          <input
-                            type="text"
-                            value={newTaskSatuan}
-                            onChange={(e) => setNewTaskSatuan(e.target.value)}
-                            placeholder="m3, m2, dll"
-                            className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-none"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[9px] text-slate-400 font-bold uppercase">Bobot (%)</span>
-                          <input
-                            type="number"
-                            step="0.01"
+                            step="0.1"
                             value={newTaskBobot}
                             onChange={(e) => setNewTaskBobot(e.target.value)}
                             placeholder="Bobot %"
@@ -1989,12 +2425,33 @@ export default function Home() {
                           />
                         </div>
                         <div className="flex flex-col gap-1">
-                          <span className="text-[9px] text-slate-400 font-bold uppercase">Target (Hari)</span>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase">Durasi (Hari)</span>
+                          <input
+                            type="text"
+                            disabled
+                            value={newTaskTargetDays ? `${newTaskTargetDays} Hari` : '-'}
+                            className="text-xs border border-slate-150 rounded-lg p-2 bg-slate-100 text-slate-500 font-bold text-center"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 md:w-1/3">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[9px] text-slate-400 font-bold uppercase">Volume Fisik (Opsional)</span>
                           <input
                             type="number"
-                            value={newTaskTargetDays}
-                            onChange={(e) => setNewTaskTargetDays(e.target.value)}
-                            placeholder="Target Hari"
+                            value={newTaskVolume}
+                            onChange={(e) => setNewTaskVolume(e.target.value)}
+                            placeholder="1"
+                            className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-none"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[9px] text-slate-400 font-bold uppercase">Satuan (Opsional)</span>
+                          <input
+                            type="text"
+                            value={newTaskSatuan}
+                            onChange={(e) => setNewTaskSatuan(e.target.value)}
+                            placeholder="Lump Sum"
                             className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-none"
                           />
                         </div>
@@ -2010,31 +2467,31 @@ export default function Home() {
                           onClick={() => handleAddTask(currentViewingProject.project_id)}
                           className="px-3.5 py-1.5 bg-secondary text-white rounded-lg text-xs font-bold hover:bg-orange-600 shadow-sm"
                         >
-                          Simpan Pekerjaan
+                          Simpan Milestone
                         </button>
                       </div>
                     </div>
                   )}
 
-                  {/* Tasks Table */}
+                  {/* Milestones Table */}
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
+                    <table className="w-full text-left text-[11px] border-collapse">
                       <thead>
                         <tr className="bg-slate-50 text-slate-400 uppercase text-[9px] font-bold tracking-wide border-b border-slate-100">
-                          <th className="py-2.5 px-3">Nama Pekerjaan</th>
-                          <th className="py-2.5 px-3">Volume</th>
-                          <th className="py-2.5 px-3">Satuan</th>
+                          <th className="py-2.5 px-3">Target Pekerjaan (Milestone)</th>
+                          <th className="py-2.5 px-3">Target Jadwal</th>
+                          <th className="py-2.5 px-3">Realisasi Selesai</th>
                           <th className="py-2.5 px-3">Bobot</th>
-                          <th className="py-2.5 px-3">Durasi</th>
-                          <th className="py-2.5 px-3">Progres</th>
+                          <th className="py-2.5 px-3">Progres Fisik</th>
                           <th className="py-2.5 px-3">Status</th>
-                          <th className="py-2.5 px-3">Jadwal</th>
+                          <th className="py-2.5 px-3">Deviasi Jadwal</th>
+                          <th className="py-2.5 px-3">Catatan / Kendala Lapangan</th>
                           <th className="py-2.5 px-3 text-center">Aksi</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {currentViewingProject.tasks.map(t => {
-                          const scheduleStatus = getScheduleStatus(t.target_days, t.current_day, t.progress);
+                          const sched = getMilestoneScheduleInfo(t.start_date, t.end_date, t.progress, t.status, t.actual_date);
                           const statusClass = 
                             t.status === 'Selesai' ? 'bg-emerald-50 text-emerald-600' :
                             t.status === 'Berjalan' ? 'bg-amber-50 text-amber-600' :
@@ -2042,35 +2499,53 @@ export default function Home() {
 
                           return (
                             <tr key={t.task_id} className="hover:bg-slate-50/30 transition-all">
-                              <td className="py-2.5 px-3 font-bold text-slate-700">{t.task_name}</td>
-                              <td className="py-2.5 px-3 text-slate-500">{t.volume}</td>
-                              <td className="py-2.5 px-3 text-slate-500">{t.satuan}</td>
-                              <td className="py-2.5 px-3 font-medium text-slate-600">{t.bobot}%</td>
-                              <td className="py-2.5 px-3 text-slate-400">
-                                {t.target_days} Hari <span className="text-[10px]">({t.current_day} H)</span>
-                              </td>
-                              <td className="py-2.5 px-3">
-                                <div className="flex items-center gap-1.5 min-w-[90px]">
-                                  <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                    <div className="h-full bg-secondary rounded-full" style={{ width: `${t.progress}%` }}></div>
-                                  </div>
-                                  <span className="font-bold text-slate-600 w-6 text-right">{t.progress}%</span>
+                              <td className="py-3 px-3">
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-slate-700 leading-tight">{t.task_name}</span>
+                                  <span className="text-[9px] text-slate-400 mt-0.5">Target: {t.volume} {t.satuan}</span>
                                 </div>
                               </td>
-                              <td className="py-2.5 px-3">
+                              <td className="py-3 px-3 text-slate-600">
+                                <div className="flex flex-col">
+                                  <span className="font-semibold">{t.start_date ? formatDateShort(t.start_date) : '-'} - {t.end_date ? formatDateShort(t.end_date) : '-'}</span>
+                                  <span className="text-[9px] text-slate-400 font-bold uppercase">{t.target_days} Hari</span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-3 text-slate-500 font-medium">
+                                {t.status === 'Selesai' && t.actual_date ? formatDate(t.actual_date) : '-'}
+                              </td>
+                              <td className="py-3 px-3 font-bold text-slate-700">{t.bobot.toFixed(1)}%</td>
+                              <td className="py-3 px-3">
+                                <div className="flex items-center gap-1.5 min-w-[80px]">
+                                  <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-gradient-to-r from-primary to-secondary rounded-full" style={{ width: `${t.progress}%` }}></div>
+                                  </div>
+                                  <span className="font-extrabold text-slate-700 w-6 text-right">{t.progress}%</span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-3">
                                 <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${statusClass}`}>{t.status}</span>
                               </td>
-                              <td className="py-2.5 px-3">
-                                <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
-                                  scheduleStatus === 'Ahead Schedule' ? 'bg-emerald-50 text-emerald-600' :
-                                  scheduleStatus === 'On Schedule' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'
-                                }`}>{scheduleStatus}</span>
+                              <td className="py-3 px-3">
+                                <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${sched.badgeColor}`}>
+                                  {sched.deviationText}
+                                </span>
                               </td>
-                              <td className="py-2.5 px-3 text-center">
+                              <td className="py-3 px-3 text-slate-500 max-w-[160px] truncate" title={t.notes}>
+                                {t.notes ? (
+                                  <span className="flex items-center gap-1 text-[10px] text-slate-600 font-medium">
+                                    <Clock className="w-3 h-3 text-secondary shrink-0" />
+                                    {t.notes}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-300">-</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-3 text-center">
                                 <button
                                   onClick={() => handleDeleteTask(currentViewingProject.project_id, t.task_id, t.task_name)}
                                   className="text-slate-400 hover:text-red-500 p-1 rounded transition-all"
-                                  title="Hapus Pekerjaan"
+                                  title="Hapus Milestone"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -2081,6 +2556,40 @@ export default function Home() {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Weight Summary and Equalizer Banner */}
+                  {(() => {
+                    const totalWeight = currentViewingProject.tasks.reduce((sum, t) => sum + t.bobot, 0);
+                    const isWeightUnbalanced = Math.abs(totalWeight - 100) > 0.05;
+                    return (
+                      <div className="flex flex-col md:flex-row justify-between items-center bg-slate-50 border border-slate-200/60 rounded-xl p-3 mt-1 gap-3 text-xs shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <Percent className="text-secondary w-4.5 h-4.5 shrink-0" />
+                          <div>
+                            <span className="font-semibold text-slate-700">Akumulasi Bobot Target: </span>
+                            <strong className={`font-extrabold ${isWeightUnbalanced ? 'text-amber-600' : 'text-emerald-600'}`}>
+                              {totalWeight.toFixed(1)}%
+                            </strong>
+                            {isWeightUnbalanced ? (
+                              <span className="text-slate-400 block md:inline md:ml-2">
+                                (Disarankan tepat 100% untuk kalkulasi proyek akurat)
+                              </span>
+                            ) : (
+                              <span className="text-emerald-600 font-medium block md:inline md:ml-2">
+                                (Bobot optimal 100%)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleEqualizeWeights(currentViewingProject.project_id)}
+                          className="shrink-0 px-3 py-1.5 bg-primary hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold transition-all shadow-sm flex items-center gap-1"
+                        >
+                          Ratakan Bobot (Bagi Rata)
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 

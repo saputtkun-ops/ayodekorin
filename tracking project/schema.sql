@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS projects (
     percentage INTEGER DEFAULT 0
 );
 
--- 3. Tasks Table (Timeline Pekerjaan)
+-- 3. Tasks Table (Timeline Pekerjaan / Milestone)
 CREATE TABLE IF NOT EXISTS tasks (
     task_id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL,
@@ -30,10 +30,15 @@ CREATE TABLE IF NOT EXISTS tasks (
     volume REAL NOT NULL,
     satuan TEXT NOT NULL,
     bobot REAL NOT NULL,
-    status TEXT NOT NULL CHECK(status IN ('Belum Dimulai', 'Berjalan', 'Selesai', 'Tertunda')),
+    status TEXT NOT NULL CHECK(status IN ('Belum Dimulai', 'Berjalan', 'Selesai', 'Tertunda', 'Terlambat')),
     progress INTEGER DEFAULT 0 CHECK(progress >= 0 AND progress <= 100),
     target_days INTEGER NOT NULL,
     current_day INTEGER DEFAULT 0,
+    start_date TEXT, -- YYYY-MM-DD
+    end_date TEXT,   -- YYYY-MM-DD
+    actual_date TEXT, -- YYYY-MM-DD
+    notes TEXT,
+    target_tomorrow TEXT,
     FOREIGN KEY (project_id) REFERENCES projects(project_id) ON DELETE CASCADE
 );
 
