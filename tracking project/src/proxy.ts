@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const authorizationHeader = req.headers.get('authorization');
 
   if (authorizationHeader) {
@@ -12,8 +12,7 @@ export function middleware(req: NextRequest) {
         const decoded = atob(authValue);
         const [user, pwd] = decoded.split(':');
 
-        // Membaca username dan password dari environment variables
-        // Fallback default jika belum diatur di Vercel: admin / saputt123
+        // Membaca username dan password dari environment variables Vercel
         const expectedUser = process.env.BASIC_AUTH_USER || 'admin';
         const expectedPassword = process.env.BASIC_AUTH_PASSWORD || 'saputt123';
 
@@ -35,7 +34,7 @@ export function middleware(req: NextRequest) {
   });
 }
 
-// Konfigurasi jalur (paths) yang akan diproteksi oleh middleware
+// Konfigurasi jalur (paths) yang akan diproteksi oleh proxy
 export const config = {
   matcher: [
     /*
@@ -48,3 +47,4 @@ export const config = {
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };
+export { proxy as middleware };
