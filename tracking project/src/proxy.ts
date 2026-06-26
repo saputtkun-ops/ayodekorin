@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function proxy(req: NextRequest) {
+export default function proxy(req: NextRequest) {
   const authorizationHeader = req.headers.get('authorization');
 
   if (authorizationHeader) {
@@ -47,4 +47,6 @@ export const config = {
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };
-export { proxy as middleware };
+
+// Ekspor sebagai nama 'middleware' untuk kompatibilitas ke belakang
+export const middleware = proxy;
