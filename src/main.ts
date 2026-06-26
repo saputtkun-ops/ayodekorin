@@ -206,8 +206,73 @@ if (btnPrevStep && step1 && step2) {
 }
 
 // Submit Form (Step 2 to Step 3)
+async function submitLeadToTurso(name: string, whatsapp: string, note: string, selectedService: string): Promise<void> {
+  const url = import.meta.env.VITE_TURSO_DATABASE_URL;
+  const token = import.meta.env.VITE_TURSO_AUTH_TOKEN;
+
+  if (!url || !token || token.includes("PLACEHOLDER")) {
+    console.warn('Turso database URL atau token belum dikonfigurasi di file .env. Data tidak disimpan ke cloud.');
+    return;
+  }
+
+  // Mengubah protokol libsql:// menjadi https:// untuk HTTP REST API
+  const httpUrl = url.replace('libsql://', 'https://');
+
+  try {
+    const payload = {
+      requests: [
+        {
+          type: 'execute',
+          stmt: {
+            sql: `CREATE TABLE IF NOT EXISTS leads (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              name TEXT,
+              whatsapp TEXT,
+              note TEXT,
+              selected_service TEXT,
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`
+          }
+        },
+        {
+          type: 'execute',
+          stmt: {
+            sql: 'INSERT INTO leads (name, whatsapp, note, selected_service) VALUES (?, ?, ?, ?)',
+            args: [
+              { type: 'text', value: name },
+              { type: 'text', value: whatsapp },
+              { type: 'text', value: note },
+              { type: 'text', value: selectedService }
+            ]
+          }
+        },
+        {
+          type: 'close'
+        }
+      ]
+    };
+
+    const response = await fetch(`${httpUrl}/v2/pipeline`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    console.log('Data lead berhasil disimpan ke database Turso.');
+  } catch (error) {
+    console.error('Gagal menyimpan data lead ke Turso:', error);
+  }
+}
+
 if (leadForm && step2 && step3) {
-  leadForm.addEventListener('submit', (e: Event) => {
+  leadForm.addEventListener('submit', async (e: Event) => {
     e.preventDefault();
     
     const clientNameInput = document.getElementById('clientName') as HTMLInputElement | null;
@@ -218,8 +283,8 @@ if (leadForm && step2 && step3) {
     const whatsapp = clientWhatsappInput ? clientWhatsappInput.value : '';
     const note = clientSpaceInput ? clientSpaceInput.value : '';
     
-    // Log for simulation
-    console.log('Lead Submitted:', { name, whatsapp, note, selectedService });
+    // Kirim data ke Turso database secara asinkron
+    submitLeadToTurso(name, whatsapp, note, selectedService);
     
     // Go to success
     step2.classList.remove('active');

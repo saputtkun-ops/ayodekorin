@@ -2,6 +2,16 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
+  getProjectsData,
+  getNotificationsData,
+  saveNewProjectAction,
+  saveProjectInfoAction,
+  addTaskAction,
+  deleteTaskAction,
+  equalizeWeightsAction,
+  saveMobileProgressAction
+} from './actions';
+import {
   HardHat,
   LayoutDashboard,
   Smartphone,
@@ -526,24 +536,43 @@ export default function Home() {
   // INITIALIZATION & PERSISTENCE
   // ==========================================================================
   useEffect(() => {
-    const savedState = localStorage.getItem('saputt_next_project_state');
-    if (savedState) {
+    // Load initial data from SQLite/Turso database using Server Actions
+    const loadDatabaseData = async () => {
       try {
-        const parsed = JSON.parse(savedState);
-        setProjects(parsed.projects || DEFAULT_PROJECTS);
-        setNotifications(parsed.notifications || DEFAULT_NOTIFICATIONS);
-      } catch (e) {
-        setProjects(DEFAULT_PROJECTS);
-        setNotifications(DEFAULT_NOTIFICATIONS);
+        const dbProjects = await getProjectsData();
+        const dbNotifications = await getNotificationsData();
+        
+        if (dbProjects && dbProjects.length > 0) {
+          setProjects(dbProjects);
+        } else {
+          setProjects(DEFAULT_PROJECTS);
+        }
+        
+        if (dbNotifications && dbNotifications.length > 0) {
+          setNotifications(dbNotifications);
+        } else {
+          setNotifications(DEFAULT_NOTIFICATIONS);
+        }
+      } catch (error) {
+        console.error("Gagal memuat data dari database, memuat dari localStorage sebagai cadangan:", error);
+        const savedState = localStorage.getItem('saputt_next_project_state');
+        if (savedState) {
+          try {
+            const parsed = JSON.parse(savedState);
+            setProjects(parsed.projects || DEFAULT_PROJECTS);
+            setNotifications(parsed.notifications || DEFAULT_NOTIFICATIONS);
+          } catch (e) {
+            setProjects(DEFAULT_PROJECTS);
+            setNotifications(DEFAULT_NOTIFICATIONS);
+          }
+        } else {
+          setProjects(DEFAULT_PROJECTS);
+          setNotifications(DEFAULT_NOTIFICATIONS);
+        }
       }
-    } else {
-      setProjects(DEFAULT_PROJECTS);
-      setNotifications(DEFAULT_NOTIFICATIONS);
-      localStorage.setItem('saputt_next_project_state', JSON.stringify({
-        projects: DEFAULT_PROJECTS,
-        notifications: DEFAULT_NOTIFICATIONS
-      }));
-    }
+    };
+    
+    loadDatabaseData();
   }, []);
 
   const saveState = (updatedProjects: Project[], updatedNotifications: Notification[]) => {
@@ -821,6 +850,9 @@ export default function Home() {
       return;
     }
 
+    const newProjId = "proj-" + Date.now();
+    const projValue = parseInt(newProjValue) || 0;
+
     const defaultTasks: Task[] = [
       { task_id: "t-new-1", task_name: "Persiapan", volume: 1, satuan: "Lump Sum", bobot: 5, status: "Belum Dimulai", progress: 0, target_days: 7, current_day: 0 },
       { task_id: "t-new-2", task_name: "Galian Tanah", volume: 50, satuan: "m3", bobot: 5, status: "Belum Dimulai", progress: 0, target_days: 10, current_day: 0 },
@@ -835,15 +867,15 @@ export default function Home() {
     ];
 
     const newProject: Project = {
-      project_id: "proj-" + Date.now(),
+      project_id: newProjId,
       project_name: newProjName,
       location: newProjLocation,
       owner: newProjOwner,
-      value: parseInt(newProjValue),
+      value: projValue,
       start_date: newProjStart,
       end_date: newProjEnd,
       percentage: 0,
-      tasks: defaultTasks,
+      tasks: [],
       photos: [],
       history: [{ week: 1, progress: 0 }]
     };
@@ -860,6 +892,18 @@ export default function Home() {
     ];
 
     saveState(updatedProjects, updatedNotifications);
+    
+    // Simpan ke database menggunakan Server Action secara asynchronous
+    saveNewProjectAction({
+      project_id: newProjId,
+      project_name: newProjName,
+      location: newProjLocation,
+      owner: newProjOwner,
+      value: projValue,
+      start_date: newProjStart,
+      end_date: newProjEnd,
+      percentage: 0
+    }, updatedNotifications[0]);
 
     // Reset Form
     setNewProjName('');
@@ -918,6 +962,17 @@ export default function Home() {
     ];
 
     saveState(updatedProjects, updatedNotifications);
+    
+    // Simpan ke database menggunakan Server Action secara asynchronous
+    saveProjectInfoAction(projectId, {
+      projectName: editProjName,
+      location: editProjLocation,
+      owner: editProjOwner,
+      value: parseInt(editProjValue) || 0,
+      startDate: editProjStart,
+      endDate: editProjEnd
+    }, updatedNotifications[0]);
+
     setIsEditingProject(false);
     triggerToast("Informasi proyek berhasil diperbarui", "success");
   };
@@ -937,24 +992,25 @@ export default function Home() {
       return;
     }
 
+    const newTask: Task = {
+      task_id: "t-added-" + Date.now(),
+      task_name: newTaskName,
+      volume: taskVolume,
+      satuan: newTaskSatuan,
+      bobot: taskWeight,
+      status: 'Belum Dimulai',
+      progress: 0,
+      target_days: taskTarget,
+      current_day: 0,
+      start_date: newTaskStart,
+      end_date: newTaskEnd
+    };
+
+    let nextPercentage = 0;
     const updatedProjects = projects.map(p => {
       if (p.project_id === projectId) {
-        const newTask: Task = {
-          task_id: "t-added-" + Date.now(),
-          task_name: newTaskName,
-          volume: taskVolume,
-          satuan: newTaskSatuan,
-          bobot: taskWeight,
-          status: 'Belum Dimulai',
-          progress: 0,
-          target_days: taskTarget,
-          current_day: 0,
-          start_date: newTaskStart,
-          end_date: newTaskEnd
-        };
-
         const nextTasks = [...p.tasks, newTask];
-        const nextPercentage = calculateWeightedProjectPercentage(nextTasks);
+        nextPercentage = calculateWeightedProjectPercentage(nextTasks);
 
         return {
           ...p,
@@ -977,6 +1033,9 @@ export default function Home() {
 
     saveState(updatedProjects, updatedNotifications);
     
+    // Simpan ke database menggunakan Server Action secara asynchronous
+    addTaskAction(projectId, newTask, nextPercentage, updatedNotifications[0]);
+    
     // Reset Form
     setNewTaskName('');
     setNewTaskVolume('');
@@ -991,10 +1050,11 @@ export default function Home() {
   };
 
   const handleDeleteTask = (projectId: string, taskId: string, taskName: string) => {
+    let nextPercentage = 0;
     const updatedProjects = projects.map(p => {
       if (p.project_id === projectId) {
         const nextTasks = p.tasks.filter(t => t.task_id !== taskId);
-        const nextPercentage = calculateWeightedProjectPercentage(nextTasks);
+        nextPercentage = calculateWeightedProjectPercentage(nextTasks);
 
         return {
           ...p,
@@ -1016,10 +1076,16 @@ export default function Home() {
     ];
 
     saveState(updatedProjects, updatedNotifications);
+    
+    // Simpan ke database menggunakan Server Action secara asynchronous
+    deleteTaskAction(projectId, taskId, nextPercentage, updatedNotifications[0]);
+
     triggerToast(`Milestone ${taskName} berhasil dihapus`, "success");
   };
 
   const handleEqualizeWeights = (projectId: string) => {
+    let nextPercentage = 0;
+    let tasksToUpdate: { taskId: string; bobot: number }[] = [];
     const updatedProjects = projects.map(p => {
       if (p.project_id === projectId) {
         if (p.tasks.length === 0) return p;
@@ -1038,7 +1104,8 @@ export default function Home() {
           updatedTasks[updatedTasks.length - 1].bobot = parseFloat((100 - sum).toFixed(2));
         }
 
-        const nextPercentage = calculateWeightedProjectPercentage(updatedTasks);
+        tasksToUpdate = updatedTasks.map(t => ({ taskId: t.task_id, bobot: t.bobot }));
+        nextPercentage = calculateWeightedProjectPercentage(updatedTasks);
         return {
           ...p,
           tasks: updatedTasks,
@@ -1059,6 +1126,12 @@ export default function Home() {
     ];
 
     saveState(updatedProjects, updatedNotifications);
+    
+    // Simpan ke database menggunakan Server Action secara asynchronous
+    if (tasksToUpdate.length > 0) {
+      equalizeWeightsAction(projectId, tasksToUpdate, nextPercentage, updatedNotifications[0]);
+    }
+
     triggerToast("Bobot pekerjaan berhasil dibagi rata", "success");
   };
 
@@ -1177,19 +1250,28 @@ _Dikirim via Saputt Project Tracking Dashboard_`;
   const handleSaveMobileTask = (project: Project, task: Task) => {
     const oldProgress = task.progress;
     
+    let nextPercentage = 0;
+    let taskUpdates: any = {};
+    let historyUpdates: any[] = [];
+    let photoToInsert: any = null;
+    let notifsToInsert: any[] = [];
+
     const updatedProjects = projects.map(p => {
       if (p.project_id === project.project_id) {
         const updatedTasks = p.tasks.map(t => {
           if (t.task_id === task.task_id) {
             const isCompleted = editProgress === 100 || editStatus === 'Selesai';
-            return {
-              ...t,
+            taskUpdates = {
               progress: editProgress,
               status: editStatus,
               current_day: editCurrentDay,
               notes: editPhotoDesc, // Save daily log/notes
               target_tomorrow: editTargetTomorrow,
               actual_date: isCompleted ? (t.actual_date || new Date().toISOString().split("T")[0]) : t.actual_date
+            };
+            return {
+              ...t,
+              ...taskUpdates
             };
           }
           return t;
@@ -1198,18 +1280,17 @@ _Dikirim via Saputt Project Tracking Dashboard_`;
         // Add photo if uploaded
         let updatedPhotos = [...p.photos];
         if (editPhotoData) {
-          const newPhoto: Photo = {
+          photoToInsert = {
             photo_id: "photo-" + Date.now(),
             task_name: task.task_name,
             description: editPhotoDesc || `${task.task_name} update progres ${editProgress}%`,
             date: new Date().toISOString().split("T")[0],
-            location: p.location.split(",")[0],
             image_url: editPhotoData
           };
-          updatedPhotos = [newPhoto, ...updatedPhotos];
+          updatedPhotos = [{ ...photoToInsert, location: p.location.split(",")[0] }, ...updatedPhotos];
         }
 
-        const nextPercentage = calculateWeightedProjectPercentage(updatedTasks);
+        nextPercentage = calculateWeightedProjectPercentage(updatedTasks);
 
         let updatedHistory = [...p.history];
         if (editProgress > oldProgress) {
@@ -1223,6 +1304,7 @@ _Dikirim via Saputt Project Tracking Dashboard_`;
             });
           }
         }
+        historyUpdates = updatedHistory;
 
         return {
           ...p,
@@ -1236,26 +1318,42 @@ _Dikirim via Saputt Project Tracking Dashboard_`;
     });
 
     const newNotifications = [...notifications];
-    newNotifications.unshift({
+    const n1 = {
       id: "notif-prog-" + Date.now(),
-      type: "alert-progress",
+      type: "alert-progress" as const,
       message: `Pelaksana memperbarui *${task.task_name}* (${editProgress}%) di *${project.project_name}*`,
       time: "Baru saja"
-    });
+    };
+    newNotifications.unshift(n1);
+    notifsToInsert.push(n1);
 
     const sched = getMilestoneScheduleInfo(task.start_date, task.end_date, editProgress, editStatus, task.actual_date);
     if (sched.statusText === 'Terlambat' && editStatus !== 'Selesai') {
-      newNotifications.unshift({
+      const n2 = {
         id: "notif-warn-" + Date.now(),
-        type: "alert-delayed",
+        type: "alert-delayed" as const,
         message: `[Peringatan] Milestone *${task.task_name}* di *${project.project_name}* terdeteksi terlambat (${sched.deviationText})!`,
         time: "Baru saja"
-      });
+      };
+      newNotifications.unshift(n2);
+      notifsToInsert.push(n2);
     }
 
     if (newNotifications.length > 10) newNotifications.pop();
 
     saveState(updatedProjects, newNotifications);
+    
+    // Simpan ke database menggunakan Server Action secara asynchronous
+    saveMobileProgressAction(
+      project.project_id,
+      task.task_id,
+      taskUpdates,
+      nextPercentage,
+      historyUpdates,
+      photoToInsert,
+      notifsToInsert
+    );
+
     triggerToast("Progres milestone berhasil disimpan", "success");
     
     setMobileScreen('project-detail');

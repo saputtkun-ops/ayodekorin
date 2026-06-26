@@ -1,6 +1,5 @@
 import { db } from "./db";
-import fs from "fs";
-import path from "path";
+import * as schema from "./schema";
 
 // Default Mock Data for Seeding (Milestone-based)
 const SEED_PROJECTS = [
@@ -276,7 +275,7 @@ const SEED_PROJECTS = [
         start_date: "2026-04-15",
         end_date: "2026-04-22",
         actual_date: "2026-04-21",
-        notes: "Pembongkaran sekat gypsum lama and pembuangan puing tuntas."
+        notes: "Pembongkaran sekat gypsum lama dan pembuangan puing tuntas."
       },
       { 
         task_id: "t3-2", 
@@ -364,82 +363,105 @@ const SEED_USERS = [
 ];
 
 async function main() {
-  console.log("Memulai proses seeding basis data...");
+  console.log("Memulai proses seeding basis data dengan Drizzle ORM...");
 
   try {
-    // 1. Membaca skema SQL dari berkas schema.sql
-    const schemaPath = path.join(__dirname, "../../schema.sql");
-    if (!fs.existsSync(schemaPath)) {
-      throw new Error(`Berkas skema tidak ditemukan di: ${schemaPath}`);
-    }
-    const schemaSql = fs.readFileSync(schemaPath, "utf-8");
+    // 1. Menghapus data lama (clean migration)
+    console.log("Menghapus data lama jika ada (clean migration)...");
+    
+    // Kita gunakan try-catch individual jika tabel belum terbentuk di database
+    try { await db.delete(schema.projectHistory); } catch (e) {}
+    try { await db.delete(schema.photos); } catch (e) {}
+    try { await db.delete(schema.tasks); } catch (e) {}
+    try { await db.delete(schema.notifications); } catch (e) {}
+    try { await db.delete(schema.projects); } catch (e) {}
+    try { await db.delete(schema.users); } catch (e) {}
 
-    // 2. Menghapus tabel lama untuk migrasi bersih dan mengeksekusi skema pembuatan tabel
-    console.log("Menghapus tabel lama jika ada (clean migration)...");
-    await db.execute("DROP TABLE IF EXISTS project_history");
-    await db.execute("DROP TABLE IF EXISTS photos");
-    await db.execute("DROP TABLE IF EXISTS tasks");
-    await db.execute("DROP TABLE IF EXISTS notifications");
-    await db.execute("DROP TABLE IF EXISTS projects");
-    await db.execute("DROP TABLE IF EXISTS users");
-
-    console.log("Membuat tabel skema basis data baru...");
-    await db.executeMultiple(schemaSql);
-    console.log("Tabel skema berhasil dibuat.");
-
-    // 4. Memasukkan data Users
+    // 2. Memasukkan data Users
     console.log("Memasukkan data pengguna bawaan...");
-    for (const u of SEED_USERS) {
-      await db.execute({
-        sql: "INSERT INTO users (user_id, name, email, role) VALUES (?, ?, ?, ?)",
-        args: [u.user_id, u.name, u.email, u.role]
-      });
-    }
+    await db.insert(schema.users).values(
+      SEED_USERS.map(u => ({
+        userId: u.user_id,
+        name: u.name,
+        email: u.email,
+        role: u.role as 'Pelaksana' | 'Manager'
+      }))
+    );
 
-    // 5. Memasukkan data Projects dan anak tabelnya (Tasks, Photos, History)
+    // 3. Memasukkan data Projects dan anak tabelnya (Tasks, Photos, History)
     console.log("Memasukkan data proyek, tugas, foto, dan tren riwayat...");
     for (const p of SEED_PROJECTS) {
       // Insert Project
-      await db.execute({
-        sql: "INSERT INTO projects (project_id, project_name, location, owner, value, start_date, end_date, percentage) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        args: [p.project_id, p.project_name, p.location, p.owner, p.value, p.start_date, p.end_date, p.percentage]
+      await db.insert(schema.projects).values({
+        projectId: p.project_id,
+        projectName: p.project_name,
+        location: p.location,
+        owner: p.owner,
+        value: p.value,
+        startDate: p.start_date,
+        endDate: p.end_date,
+        percentage: p.percentage,
       });
 
       // Insert Tasks (Milestone-based)
-      for (const t of p.tasks) {
-        await db.execute({
-          sql: "INSERT INTO tasks (task_id, project_id, task_name, volume, satuan, bobot, status, progress, target_days, current_day, start_date, end_date, actual_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          args: [t.task_id, p.project_id, t.task_name, t.volume, t.satuan, t.bobot, t.status, t.progress, t.target_days, t.current_day, t.start_date, t.end_date, t.actual_date || null, t.notes || null]
-        });
+      if (p.tasks.length > 0) {
+        const tasksToInsert = p.tasks.map(t => ({
+          taskId: t.task_id,
+          projectId: p.project_id,
+          taskName: t.task_name,
+          volume: t.volume,
+          satuan: t.satuan,
+          bobot: t.bobot,
+          status: t.status as 'Belum Dimulai' | 'Berjalan' | 'Selesai' | 'Tertunda' | 'Terlambat',
+          progress: t.progress,
+          targetDays: t.target_days,
+          currentDay: t.current_day,
+          startDate: t.start_date,
+          endDate: t.end_date,
+          actualDate: t.actual_date || null,
+          notes: t.notes || null,
+        }));
+        await db.insert(schema.tasks).values(tasksToInsert);
       }
 
       // Insert Photos
-      for (const ph of p.photos) {
-        await db.execute({
-          sql: "INSERT INTO photos (photo_id, project_id, task_name, description, date, image_url) VALUES (?, ?, ?, ?, ?, ?)",
-          args: [ph.photo_id, p.project_id, ph.task_name, ph.description, ph.date, ph.image_url]
-        });
+      if (p.photos.length > 0) {
+        const photosToInsert = p.photos.map(ph => ({
+          photoId: ph.photo_id,
+          projectId: p.project_id,
+          taskName: ph.task_name,
+          description: ph.description || null,
+          date: ph.date,
+          imageUrl: ph.image_url,
+        }));
+        await db.insert(schema.photos).values(photosToInsert);
       }
 
       // Insert History
-      for (const h of p.history) {
-        await db.execute({
-          sql: "INSERT INTO project_history (history_id, project_id, week, progress) VALUES (?, ?, ?, ?)",
-          args: [`hist-${p.project_id}-${h.week}`, p.project_id, h.week, h.progress]
-        });
+      if (p.history.length > 0) {
+        const historyToInsert = p.history.map(h => ({
+          historyId: `hist-${p.project_id}-${h.week}`,
+          projectId: p.project_id,
+          week: h.week,
+          progress: h.progress,
+        }));
+        await db.insert(schema.projectHistory).values(historyToInsert);
       }
     }
 
-    // 6. Memasukkan data Notifications
+    // 4. Memasukkan data Notifications
     console.log("Memasukkan data notifikasi...");
-    for (const n of SEED_NOTIFICATIONS) {
-      await db.execute({
-        sql: "INSERT INTO notifications (id, type, message, time) VALUES (?, ?, ?, ?)",
-        args: [n.id, n.type, n.message, n.time]
-      });
+    if (SEED_NOTIFICATIONS.length > 0) {
+      const notificationsToInsert = SEED_NOTIFICATIONS.map(n => ({
+        id: n.id,
+        type: n.type as 'alert-delayed' | 'alert-photo' | 'alert-progress' | 'alert-info',
+        message: n.message,
+        time: n.time,
+      }));
+      await db.insert(schema.notifications).values(notificationsToInsert);
     }
 
-    console.log("Proses seeding basis data berhasil diselesaikan!");
+    console.log("Proses seeding basis data berhasil diselesaikan dengan Drizzle ORM!");
   } catch (error) {
     console.error("Gagal melakukan seeding basis data:", error);
     process.exit(1);
